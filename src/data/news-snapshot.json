@@ -1,0 +1,66 @@
+{
+  "articles": [
+    {
+      "id": "techcrunch-ai-text-agents-2026-10-03",
+      "title": "All the AI agents that can live in your text messages",
+      "description": "A roundup of messaging-based assistants for personal tasks, family schedules, travel, and work.",
+      "url": "https://techcrunch.com/2026/10/03/all-the-ai-agents-that-can-live-in-your-text-messages/",
+      "source": "TechCrunch",
+      "publishedAt": "2026-10-03T14:00:00Z",
+      "category": "Tools"
+    },
+    {
+      "id": "openai-gpt-6-guide-2026-10-02",
+      "title": "A model guide for the GPT-6 family",
+      "description": "A practical guide to choosing GPT-6 models and balancing reasoning, prompt design, latency, and cost.",
+      "url": "https://openai.com/index/practical-guide-building-gpt-6",
+      "source": "OpenAI",
+      "publishedAt": "2026-10-02T16:15:00Z",
+      "category": "Models"
+    },
+    {
+      "id": "huggingface-astabrief-2026-10-02",
+      "title": "Open-sourcing AstaBrief, the fast report-generation model in Asta",
+      "description": "Ai2 released an open 8B model and training data for generating cited scientific reports from retrieved literature.",
+      "url": "https://huggingface.co/blog/allenai/astabrief",
+      "source": "Ai2 on Hugging Face",
+      "publishedAt": "2026-10-02T15:19:50Z",
+      "category": "Research"
+    },
+    {
+      "id": "google-ai-september-roundup-2026-10-02",
+      "title": "The latest AI news we announced in September 2026",
+      "description": "Google rounds up Gemini 4 Argon, new Connected Apps, voice features, and AI research. Argon is initially available to trusted cyber defenders.",
+      "url": "https://blog.google/innovation-and-ai/technology/ai/google-ai-updates-september-2026/",
+      "source": "Google AI",
+      "publishedAt": "2026-10-02T15:00:00Z",
+      "category": "Industry"
+    },
+    {
+      "id": "huggingface-autosynthdata-2026-10-02",
+      "title": "AutoSynthData: Generating Training Data for Enterprise Agents",
+      "description": "ServiceNow's pipeline turns enterprise agents' failures into new, validated training tasks that address gaps in their capabilities.",
+      "url": "https://huggingface.co/blog/ServiceNow-AI/autosynthdata",
+      "source": "ServiceNow on Hugging Face",
+      "publishedAt": "2026-10-02T04:01:31Z",
+      "category": "Research"
+    },
+    {
+      "id": "huggingface-open-tts-leaderboard-2026-09-30",
+      "title": "Open TTS Leaderboard: Scalable Evaluation for Multilingual Text-to-Speech and Voice Cloning",
+      "description": "New evaluations compare speech intelligibility and voice matching across languages. Objective scores complement human preferences rather than replacing them.",
+      "url": "https://huggingface.co/blog/open-tts-leaderboard",
+      "source": "Hugging Face",
+      "publishedAt": "2026-09-30T00:00:00Z",
+      "category": "Tools"
+    }
+  ],
+  "fetchedAt": "2026-10-03T15:53:02Z",
+  "sources": [
+    { "name": "OpenAI", "ok": true },
+    { "name": "Google AI", "ok": true },
+    { "name": "Hugging Face", "ok": true },
+    { "name": "TechCrunch", "ok": true }
+  ],
+  "fallback": true
+}
