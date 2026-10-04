@@ -3,9 +3,8 @@ import { unstable_cache } from "next/cache";
 import { databaseConfigured, publicDatabase } from "./supabase";
 import type { BriefStory } from "../brief";
 
-export const getPublishedStories = unstable_cache(
+const cachedPublishedStories = unstable_cache(
   async (): Promise<BriefStory[]> => {
-    if (!databaseConfigured()) return [];
     const { data, error } = await publicDatabase()
       .from("brief_publications")
       .select("*")
@@ -15,9 +14,17 @@ export const getPublishedStories = unstable_cache(
       throw new Error("The published briefing is temporarily unavailable.");
     return (data || []) as BriefStory[];
   },
-  ["published-brief-v1"],
+  [
+    "published-brief-v1",
+    process.env.NEXT_PUBLIC_SUPABASE_URL || "unconfigured",
+  ],
   { revalidate: 300, tags: ["brief"] },
 );
+export async function getPublishedStories(): Promise<BriefStory[]> {
+  // Configuration checks must happen before a cache hit; cache namespaces must
+  // also change when switching Supabase projects or local test fixtures.
+  return databaseConfigured() ? cachedPublishedStories() : [];
+}
 export const getPublishedStory = async (
   slug: string,
 ): Promise<BriefStory | null> => {
