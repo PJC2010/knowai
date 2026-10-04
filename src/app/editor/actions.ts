@@ -32,7 +32,7 @@ export async function loginEditor(
         email,
         options: {
           shouldCreateUser: false,
-          emailRedirectTo: `${siteUrl()}/editor/callback`,
+          emailRedirectTo: new URL("/editor/callback", siteUrl()).toString(),
         },
       });
     },

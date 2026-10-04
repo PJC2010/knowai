@@ -58,6 +58,18 @@ Supabase's [default email service](https://supabase.com/docs/guides/auth/auth-sm
 
 Once email arrives, a link that lands on the wrong page is a separate redirect issue: set `NEXT_PUBLIC_SITE_URL` to the production origin and allow that exact origin plus `/editor/callback` in Supabase URL Configuration. Open the link in the browser that requested it. A successful login followed by an access rejection means checking the verified user and `brief_editors` grant.
 
+For the current Vercel deployment, use these matching settings:
+
+| Setting | Value |
+| --- | --- |
+| Vercel `NEXT_PUBLIC_SITE_URL` | `https://knowai-sepia.vercel.app` |
+| Supabase Authentication → URL Configuration → Site URL | `https://knowai-sepia.vercel.app` |
+| Supabase Authentication → URL Configuration → Redirect URLs | `https://knowai-sepia.vercel.app/editor/callback` |
+
+The app now normalizes the site origin, including a mistakenly copied trailing slash, before constructing links. Older deployments could send `//editor/callback`, which does not match the intended allowed URL. Supabase can fall back to its Site URL when a requested redirect is not allowed; this can land on the homepage or a different Vercel alias without completing the editor callback. The callback must run on the same origin where the browser requested the link, so it can read the PKCE cookie.
+
+Save Supabase's URL settings and redeploy after changing Vercel environment variables. Request a **new** email from the canonical `/editor` URL and open it in the same browser. Existing emails retain their previous redirect URL. Keep the magic-link template's default `{{ .ConfirmationURL }}` link instead of hard-coding another site URL. Avoid sharing verification tokens or complete sign-in links in logs sent to others.
+
 ## Ingestion and review
 
 `vercel.json` schedules `/api/cron/editorial` daily at 07:00 UTC, compatible with a daily Vercel cron schedule. Actual delivery time is controlled by the hosting plan. Vercel supplies the `Authorization: Bearer CRON_SECRET` header. Manual refresh uses the same worker. Allow a function duration of up to 300 seconds on the deployment plan.

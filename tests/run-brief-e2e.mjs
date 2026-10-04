@@ -7,7 +7,9 @@ const env = {
   SUPABASE_SECRET_KEY: "fixture-service-key",
   EDITORIAL_OPENROUTER_API_KEY: "",
   CRON_SECRET: "fixture-cron-secret",
-  NEXT_PUBLIC_SITE_URL: "http://127.0.0.1:4311",
+  // Reproduce a deployment URL copied with its trailing slash; the callback
+  // and canonical URLs must still match their exact, single-slash paths.
+  NEXT_PUBLIC_SITE_URL: "http://127.0.0.1:4311/",
   EDITOR_EMAIL_ALLOWLIST: "editor@example.test",
 };
 const fixture = spawn("npx", ["tsx", "tests/brief-fixture-server.ts"], {
