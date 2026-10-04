@@ -5,12 +5,12 @@ import { validateTiers, type BriefStory, type Tiers } from "@/lib/brief";
 import type { DeskData, DeskHistory, DeskMutation, DeskResult, DeskRevision } from "@/lib/editorial/desk-types";
 import { createDraftSession, canPublish, quoteMatches, acceptSuggestion, contentDiff } from "./workspace-state";
 import { WritePanel, type Tier, type WritingField, fieldLabels } from "./panels";
-import { DeskDialog, ChargeNotice } from "./dialog";
+import { DeskDialog, ChargeNotice, LimitReachedNotice } from "./dialog";
 import { useNavigationGuard } from "./navigation-guard";
 
 export type DeskAction = (input: DeskMutation) => Promise<DeskResult>;
-export function ReviewWorkspace({ revision, history, revisions, attempts, mutate, onBack, onOpen, refreshHistory, historyLoading }: {
-  revision: DeskRevision; history: DeskHistory[]; revisions: DeskData["revisions"]; attempts: number;
+export function ReviewWorkspace({ revision, history, revisions, attempts, limit, mutate, onBack, onOpen, refreshHistory, historyLoading }: {
+  revision: DeskRevision; history: DeskHistory[]; revisions: DeskData["revisions"]; attempts: number; limit: number;
   mutate: DeskAction; onBack: () => void; onOpen: (id: string) => void;
   refreshHistory: () => void; historyLoading: boolean;
 }) {
@@ -34,6 +34,8 @@ export function ReviewWorkspace({ revision, history, revisions, attempts, mutate
   const [instruction, setInstruction] = useState<"simplify" | "shorten" | "alternative">("simplify");
   const [suggestion, setSuggestion] = useState<{ field: WritingField; before: string | string[]; value: string | string[]; cost: number | null } | null>(null);
   const [attemptsUsed, setAttemptsUsed] = useState(attempts);
+  const [dailyLimit, setDailyLimit] = useState(limit);
+  useEffect(() => { setAttemptsUsed(attempts); setDailyLimit(limit); }, [attempts, limit]);
   const source = revision.brief_sources;
   const editable = decision === "needs_review";
   const errors = validateTiers(state.content, revision.source_text);
@@ -65,6 +67,7 @@ export function ReviewWorkspace({ revision, history, revisions, attempts, mutate
       const result = await mutate(input);
       setMessage(result.message);
       if (typeof result.attemptsToday === "number") setAttemptsUsed(result.attemptsToday);
+      if (Number.isSafeInteger(result.dailyAttemptLimit) && result.dailyAttemptLimit! >= 1 && result.dailyAttemptLimit! <= 1000) setDailyLimit(result.dailyAttemptLimit!);
       if (result.code === "conflict") session.serverConflict(result);
       return result;
     } catch {
@@ -114,7 +117,7 @@ export function ReviewWorkspace({ revision, history, revisions, attempts, mutate
   const text = (value: string | string[]) => Array.isArray(value) ? value.join("\n\n") : value;
 
   return <section className="desk-workspace" aria-label="Story workspace">
-    <div className="desk-work-top"><button className="text-button" onClick={() => { if (guard.canLeave()) { guard.allow(); onBack(); } }}>← Back to queue</button><span className="desk-state">{decision.replaceAll("_", " ")} · v{state.version}</span></div>
+    <LimitReachedNotice attempts={attemptsUsed} limit={dailyLimit} /><div className="desk-work-top"><button className="text-button" onClick={() => { if (guard.canLeave()) { guard.allow(); onBack(); } }}>← Back to queue</button><span className="desk-state">{decision.replaceAll("_", " ")} · v{state.version}</span></div>
     <header className="desk-work-heading"><div className="desk-meta"><span>{source.source_name}</span><time dateTime={source.source_published_at}>{source.source_published_at.slice(0, 10)}</time><span>{source.category}</span></div><h1>{source.title}</h1><div className="desk-card-actions"><button className="button secondary" onClick={() => showSource()}>Original source ↗</button><button className="text-button" disabled={busy || state.saving} onClick={async () => { if (await session.save()) { setHistoryOpen(true); refreshHistory(); } }}>Revision history</button></div></header>
     {decision !== "needs_review" && <div className="desk-outcome" role="status"><h2>{decision === "published" ? "This story is published." : "This draft was rejected."}</h2><p>{decision === "published" ? "The public story stays unchanged until another revision is explicitly approved." : "Existing public content has not changed."}</p><div className="desk-card-actions">{slug && <a className="button secondary" href={`/brief/${slug}`} target="_blank" rel="noreferrer">View published story ↗</a>}<button className="button secondary" disabled={busy} onClick={async () => { const result = await run({ intent: "fork", id: revision.id }); if (result.ok && result.revisionId) { guard.allow(); onOpen(result.revisionId); } }}>Create an editable revision</button>{next ? <button className="button primary" onClick={() => openRevision(next.id)}>Next draft →</button> : <button className="button primary" onClick={onBack}>Back to queue →</button>}</div></div>}
     <div className="desk-work-layout"><div className="desk-work-main">
@@ -143,11 +146,11 @@ export function ReviewWorkspace({ revision, history, revisions, attempts, mutate
       <div className="desk-source-text" ref={sourceText}>{matches.length ? <>{matches.map((match, i) => <span key={match.start}>{revision.source_text.slice(i ? matches[i - 1].end : 0, match.start)}<mark tabIndex={-1} data-current={i === matchIndex}>{revision.source_text.slice(match.start, match.end)}</mark></span>)}{revision.source_text.slice(matches[matches.length - 1].end)}</> : revision.source_text || "No captured source text is available."}</div>
     </DeskDialog>
     <DeskDialog open={!!confirmation} onClose={() => setConfirmation(null)} busy={busy || state.saving} title={confirmation === "publish" ? "Publish this saved version?" : confirmation === "reject" ? "Reject this draft?" : "Generate another draft?"} description={confirmation === "publish" ? `Version ${state.version} will become public. This is a human approval, not another save.` : confirmation === "reject" ? "Your changes will be saved first. Any existing public story stays unchanged." : "This is a new paid model attempt using this story’s source. It does not publish or replace your current draft."}>
-      {confirmation === "regenerate" && <><ChargeNotice attempts={attemptsUsed} /><label className="editor-check"><input type="checkbox" checked={charge} onChange={e => setCharge(e.target.checked)} />I understand this may incur a model charge.</label></>}
-      <div className="desk-card-actions"><button className="button secondary" disabled={busy || state.saving} onClick={() => setConfirmation(null)}>Cancel</button><button className="button primary" disabled={busy || state.saving || (confirmation === "publish" && !ready) || (confirmation === "regenerate" && (!charge || attemptsUsed >= 10))} onClick={() => void decide()}>{busy || state.saving ? "Working…" : confirmation === "publish" ? "Confirm publication" : confirmation === "reject" ? "Confirm rejection" : "Confirm generation"}</button></div><p role="status">{message}</p>
+      {confirmation === "regenerate" && <><ChargeNotice attempts={attemptsUsed} limit={dailyLimit} /><label className="editor-check"><input type="checkbox" checked={charge} onChange={e => setCharge(e.target.checked)} />I understand this may incur a model charge.</label></>}
+      <div className="desk-card-actions"><button className="button secondary" disabled={busy || state.saving} onClick={() => setConfirmation(null)}>Cancel</button><button className="button primary" disabled={busy || state.saving || (confirmation === "publish" && !ready) || (confirmation === "regenerate" && (!charge || attemptsUsed >= dailyLimit))} onClick={() => void decide()}>{busy || state.saving ? "Working…" : confirmation === "publish" ? "Confirm publication" : confirmation === "reject" ? "Confirm rejection" : "Confirm generation"}</button></div><p role="status">{message}</p>
     </DeskDialog>
     <DeskDialog open={!!suggestField} onClose={() => setSuggestField(null)} busy={busy || state.saving} title="Suggest a field rewrite" description="Source-grounded AI assistance for one field only. Your draft is saved first; the result is a suggestion, never an automatic replacement.">
-      <label>Instruction<select value={instruction} onChange={e => setInstruction(e.target.value as typeof instruction)}><option value="simplify">Simplify</option><option value="shorten">Shorten</option><option value="alternative">Suggest an alternative</option></select></label><ChargeNotice attempts={attemptsUsed} /><label className="editor-check"><input type="checkbox" checked={charge} onChange={e => setCharge(e.target.checked)} />I understand this suggestion may incur a model charge.</label><button className="button primary" disabled={!charge || busy || state.saving || attemptsUsed >= 10} onClick={() => void requestSuggestion()}>{busy ? "Preparing suggestion…" : "Generate suggestion"}</button><p role="status">{message}</p>
+      <label>Instruction<select value={instruction} onChange={e => setInstruction(e.target.value as typeof instruction)}><option value="simplify">Simplify</option><option value="shorten">Shorten</option><option value="alternative">Suggest an alternative</option></select></label><ChargeNotice attempts={attemptsUsed} limit={dailyLimit} /><label className="editor-check"><input type="checkbox" checked={charge} onChange={e => setCharge(e.target.checked)} />I understand this suggestion may incur a model charge.</label><button className="button primary" disabled={!charge || busy || state.saving || attemptsUsed >= dailyLimit} onClick={() => void requestSuggestion()}>{busy ? "Preparing suggestion…" : "Generate suggestion"}</button><p role="status">{message}</p>
     </DeskDialog>
     <DeskDialog open={historyOpen} onClose={() => setHistoryOpen(false)} busy={busy} title="Revision history" description="Compare historic content with your current text. Restore creates a new editable draft and never rolls back a publication.">
       {historyLoading && <p role="status">Loading saved history…</p>}{!historyLoading && !history.length && <p>No saved history for this revision yet.</p>}{!historyLoading && history.map(item => <details className="desk-history-entry" key={item.id}><summary>Version {item.version} · {item.action.replaceAll("_", " ")} · {item.created_at.slice(0, 16).replace("T", " ")} UTC</summary><HistoryDiff before={item.content} after={state.content} /><button className="button secondary" disabled={busy || state.saving} onClick={async () => { if (!guard.canLeave()) return; const result = await run({ intent: "restore", id: revision.id, historyId: item.id }); if (result.ok && result.revisionId) { guard.allow(); onOpen(result.revisionId); } }}>Restore as new draft</button></details>)}

@@ -15,6 +15,11 @@ export function DeskDialog({ open, onClose, title, description, children, reader
   </Dialog.Portal></Dialog.Root>;
 }
 
-export function ChargeNotice({ attempts }: { attempts: number }) {
-  return <p className="desk-hint">{attempts} of 10 model attempts used today (UTC). {Math.max(0, 10 - attempts)} remaining. Each batch processes up to three drafts; remaining selected work stays queued. Failed or interrupted requests may still incur charges. Publication always stays manual.</p>;
+export function LimitReachedNotice({ attempts, limit }: { attempts: number; limit: number }) {
+  if (attempts < limit) return null;
+  return <p className="desk-hint" role="status">Daily limit reached. Resets at 00:00 UTC. <a className="text-button" href="/editor?view=sources#daily-limit">Change daily limit</a></p>;
+}
+
+export function ChargeNotice({ attempts, limit }: { attempts: number; limit: number }) {
+  return <><p className="desk-hint">{attempts} of {limit} model attempts used today (UTC). {Math.max(0, limit - attempts)} remaining. Each batch processes up to three drafts; remaining selected work stays queued. Failed or interrupted requests may still incur charges. Publication always stays manual.</p><LimitReachedNotice attempts={attempts} limit={limit} /></>;
 }

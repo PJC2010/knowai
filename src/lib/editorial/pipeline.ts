@@ -124,7 +124,7 @@ export async function runEditorialBatch(jobIds: string[] | null = []) {
     failed = 0;
   try {
     const start = Date.now();
-    // At most three calls per run, ten reserved attempts per UTC day in SQL.
+    // At most three calls per run; SQL enforces the configured shared UTC-day cap.
     for (let i = 0; i < 3 && Date.now() - start < 150000; i++) {
       const claimed = await db.rpc("claim_brief_selected_job", { p_token: token, p_job_ids: jobIds });
       check(claimed.error);
@@ -233,7 +233,7 @@ export async function runEditorialBatch(jobIds: string[] | null = []) {
     return {
       generated,
       failed,
-      message: `${generated} drafts ready for review; ${failed} need attention. Remaining selected jobs stay queued; the daily limit is ten attempts.`,
+      message: `${generated} drafts ready for review; ${failed} need attention. Remaining selected jobs stay queued; the configured daily limit applies to drafts and suggestions together.`,
     };
   } finally {
     await db.rpc("release_brief_worker", { p_token: token });
