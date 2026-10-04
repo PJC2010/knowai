@@ -14,12 +14,18 @@ export async function loadDesk(query: DeskQuery): Promise<DeskData> {
   for (const key of ['view','id','q','publisher','category','status','since','page'] as const) {
     if (typeof query[key] === 'string') safe[key] = query[key].slice(0,200);
   }
-  return rpc<DeskData>(db,'load_brief_desk',{p_query:safe});
+  const data = await rpc<DeskData>(db,'load_brief_desk',{p_query:safe});
+  requireDailyLimit(data?.dailyAttemptLimit);
+  return data;
 }
 
 type Session = { db: SupabaseClient; user: { id: string } };
 class DeskError extends Error {
   constructor(message: string, readonly code: "conflict" | "invalid" | "failed" = "invalid") { super(message); }
+}
+const validDailyLimit = (value: unknown): value is number => typeof value === 'number' && Number.isSafeInteger(value) && value >= 1 && value <= 1000;
+function requireDailyLimit(value: unknown) {
+  if (!validDailyLimit(value)) throw new DeskError('Daily attempt limit configuration is unavailable. Check the editorial daily cap migration and reload.', 'failed');
 }
 const validId = (id: unknown): id is string => typeof id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 function requireId(id: unknown) { if (!validId(id)) throw new DeskError('Select a valid story or revision.'); }
@@ -39,8 +45,9 @@ export async function executeDeskMutation(input: DeskMutation, session: Session)
   if (input && ['suggest','generate','regenerate','run-queued'].includes(input.intent)) {
     try {
       const data = await rpc<DeskData>(session.db,'load_brief_desk',{p_query:{view:'sources'}});
-      if (Number.isSafeInteger(data.attemptsToday)) result.attemptsToday = data.attemptsToday;
-    } catch { /* Do not invent a count if the authoritative snapshot is unavailable. */ }
+      if (Number.isSafeInteger(data.attemptsToday) && data.attemptsToday >= 0) result.attemptsToday = data.attemptsToday;
+      if (validDailyLimit(data.dailyAttemptLimit)) result.dailyAttemptLimit = data.dailyAttemptLimit;
+    } catch { /* Do not invent a count or cap if the authoritative snapshot is unavailable. */ }
   }
   return result;
 }
@@ -152,6 +159,17 @@ async function performDeskMutation(input: DeskMutation, {db,user}: Session): Pro
       if (typeof input.enabled !== 'boolean') throw new DeskError('Invalid publisher setting.');
       await rpc(db,'set_brief_publisher',{p_id:input.id,p_enabled:input.enabled});
       return {ok:true,message:input.enabled?'Publisher enabled.':'Publisher disabled for discovery.'};
+    }
+    if (input.intent === 'daily-cap') {
+      if (!Number.isSafeInteger(input.limit) || input.limit < 1 || input.limit > 1000) throw new DeskError('Daily attempt limit must be an integer between 1 and 1000.');
+      if (typeof input.confirmCharge !== 'boolean') throw new DeskError('Invalid charge confirmation.');
+      // The session RPC compares with the stored value under the reservation lock.
+      // A stale client cannot waive consent for an actual increase.
+      await rpc(db,'set_brief_daily_attempt_limit',{p_limit:input.limit,p_confirm_charge:input.confirmCharge});
+      const data = await rpc<DeskData>(db,'load_brief_desk',{p_query:{view:'sources'}});
+      requireDailyLimit(data?.dailyAttemptLimit);
+      if (!Number.isSafeInteger(data.attemptsToday) || data.attemptsToday < 0) throw new DeskError('Daily usage is unavailable. Reload to verify the saved limit.', 'failed');
+      return {ok:true,message:'Daily attempt limit saved. Usage and queued work are unchanged.',attemptsToday:data.attemptsToday,dailyAttemptLimit:data.dailyAttemptLimit};
     }
     if (input.intent === 'auto-draft') {
       if (typeof input.enabled !== 'boolean' || (input.enabled && input.confirmCharge !== true)) throw new DeskError('Confirm automatic drafting may incur charges.');

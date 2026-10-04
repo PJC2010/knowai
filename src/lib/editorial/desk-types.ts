@@ -21,7 +21,7 @@ export type DeskData = {
   sources: DeskSource[]; revisions: DeskRevision[]; jobs: DeskJob[]; publishers: DeskPublisher[];
   active: DeskRevision | null; history: DeskHistory[];
   counts: { inbox: number; selected: number; saved: number; dismissed: number; drafts: number; published: number; failed: number; queued: number; rejected: number };
-  total: number; page: number; pageSize: number; selectedIds: string[]; attemptsToday: number; autoDraft: boolean;
+  total: number; page: number; pageSize: number; selectedIds: string[]; attemptsToday: number; dailyAttemptLimit: number; autoDraft: boolean;
 };
 export type DeskQuery = { view?: string; id?: string; q?: string; publisher?: string; category?: string; status?: string; since?: string; page?: string };
 export type DeskMutation =
@@ -32,6 +32,7 @@ export type DeskMutation =
   | { intent: "regenerate"; id: string; confirmCharge: boolean }
   | { intent: "publisher"; id: string; enabled: boolean }
   | { intent: "auto-draft"; enabled: boolean; confirmCharge: boolean }
+  | { intent: "daily-cap"; limit: number; confirmCharge: boolean }
   | { intent: "import-url"; url: string }
   | { intent: "save"; id: string; version: number; content: Tiers }
   | { intent: "publish"; id: string; version: number; sourceChecked: boolean; tiersChecked: boolean }
@@ -41,6 +42,6 @@ export type DeskMutation =
   | { intent: "suggest"; id: string; version: number; field: "oneLiner" | "shortVersion" | "wholePicture" | "whyItMatters"; instruction: "simplify" | "shorten" | "alternative"; confirmCharge: boolean };
 export type DeskResult = {
   ok: boolean; message: string; code?: "conflict" | "invalid" | "failed";
-  version?: number; revisionId?: string; slug?: string; attemptsToday?: number;
+  version?: number; revisionId?: string; slug?: string; attemptsToday?: number; dailyAttemptLimit?: number;
   suggestion?: { field: "oneLiner" | "shortVersion" | "wholePicture" | "whyItMatters"; value: string | string[]; cost: number | null };
 };

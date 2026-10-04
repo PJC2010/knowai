@@ -34,7 +34,7 @@ async function seed() {
   for(let i=4;i<135;i++)
     await db.query('insert into brief_sources(id,slug,url,title,source_name,source_published_at,category) values($1,$2,$3,$4,$5,$6,$7)',[sourceId(i),`fixture-candidate-${i}`,`https://openai.com/fixture-candidate-${i}`,`Fixture candidate ${String(i).padStart(2,'0')} — a sample AI research story for editor testing`,'OpenAI',stamp,'Research']);
   if ((await db.query("select 1 from information_schema.tables where table_name='brief_publishers'")).rows.length) {
-    await db.exec("update brief_sources s set publisher_id=p.id from brief_publishers p where s.source_name=p.name; update brief_publishers set enabled=true,last_attempt_at=null,last_success_at=null,last_error=null; update brief_settings set auto_draft=false; update brief_worker_lock set token=null,expires_at=null;");
+    await db.exec("update brief_sources s set publisher_id=p.id from brief_publishers p where s.source_name=p.name; update brief_publishers set enabled=true,last_attempt_at=null,last_success_at=null,last_error=null; update brief_settings set auto_draft=false,daily_attempt_limit=10; update brief_worker_lock set token=null,expires_at=null;");
   }
 }
 await seed();
@@ -56,6 +56,11 @@ const server=createServer(async(req,res)=>{
     if(url.pathname==='/health')return send(200,{ready:true});
     if(url.pathname==='/_fixture/otp-requests')return send(200,otpRequests);
     if(url.pathname==='/_fixture/reset'&&req.method==='POST'){await seed(); saveFailure='none'; saveDelay=0; return send(200,{ok:true});}
+    if(url.pathname==='/_fixture/attempts'&&req.method==='POST'){
+      if(!Number.isInteger(args.count)||args.count<0||args.count>1000)return send(400,{message:'Invalid fixture attempt count'});
+      await db.query("insert into brief_jobs(story_id,dedupe_key,state,attempted_at,finished_at) select $1,'fixture-attempt-'||gen_random_uuid(),'failed',now(),now() from generate_series(1,$2::integer)",[sourceId(0),args.count]);
+      return send(200,{ok:true});
+    }
     if(url.pathname==='/_fixture/save-behavior'&&req.method==='POST'){saveFailure=args.failure||'none';saveDelay=Math.min(5000,Number(args.delay)||0);return send(200,{ok:true});}
     if(url.pathname==='/auth/v1/otp'){
       otpRequests.push({...args,redirect_to:url.searchParams.get('redirect_to')});
