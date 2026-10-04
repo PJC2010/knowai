@@ -1,0 +1,46 @@
+import type { Revision, Tiers } from "../brief";
+import type { NewsCategory } from "../types";
+
+export type DeskSource = {
+  id: string; slug: string; url: string; title: string; source_name: string;
+  source_published_at: string; category: NewsCategory; publisher_id: string | null;
+  triage: "inbox" | "selected" | "saved" | "dismissed";
+  job_state: string | null; revision_id: string | null; excerpt?: string | null;
+};
+export type DeskPublisher = {
+  id: string; name: string; feed_url: string; enabled: boolean;
+  last_attempt_at: string | null; last_success_at: string | null; last_error: string | null;
+};
+export type DeskJob = {
+  id: string; story_id: string; state: string; error: string | null; cost: number | null;
+  created_at: string; title: string; source_url: string; source_name: string; selected: boolean;
+};
+export type DeskRevision = Revision & { brief_sources: DeskSource };
+export type DeskHistory = { id: string; action: string; version: number; created_at: string; content: Tiers };
+export type DeskData = {
+  sources: DeskSource[]; revisions: DeskRevision[]; jobs: DeskJob[]; publishers: DeskPublisher[];
+  active: DeskRevision | null; history: DeskHistory[];
+  counts: { inbox: number; selected: number; saved: number; dismissed: number; drafts: number; published: number; failed: number; queued: number; rejected: number };
+  total: number; page: number; pageSize: number; selectedIds: string[]; attemptsToday: number; autoDraft: boolean;
+};
+export type DeskQuery = { view?: string; id?: string; q?: string; publisher?: string; category?: string; status?: string; since?: string; page?: string };
+export type DeskMutation =
+  | { intent: "discover" }
+  | { intent: "triage"; ids: string[]; state: "inbox" | "selected" | "saved" | "dismissed" }
+  | { intent: "generate"; ids: string[]; confirmCharge: boolean }
+  | { intent: "run-queued"; confirmCharge: boolean }
+  | { intent: "regenerate"; id: string; confirmCharge: boolean }
+  | { intent: "publisher"; id: string; enabled: boolean }
+  | { intent: "auto-draft"; enabled: boolean; confirmCharge: boolean }
+  | { intent: "import-url"; url: string }
+  | { intent: "save"; id: string; version: number; content: Tiers }
+  | { intent: "publish"; id: string; version: number; sourceChecked: boolean; tiersChecked: boolean }
+  | { intent: "reject"; id: string; version: number }
+  | { intent: "fork"; id: string }
+  | { intent: "restore"; id: string; historyId: string }
+  | { intent: "suggest"; id: string; version: number; field: "oneLiner" | "shortVersion" | "wholePicture" | "whyItMatters"; instruction: "simplify" | "shorten" | "alternative"; confirmCharge: boolean };
+export type DeskResult = {
+  ok: boolean; message: string; code?: "conflict" | "invalid" | "failed";
+  version?: number; revisionId?: string; slug?: string; attemptsToday?: number;
+  suggestion?: { field: "oneLiner" | "shortVersion" | "wholePicture" | "whyItMatters"; value: string | string[]; cost: number | null };
+};

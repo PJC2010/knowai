@@ -43,6 +43,8 @@ export function Header() {
     return () => desktop.removeEventListener("change", closeOnDesktop);
   }, []);
 
+  if (pathname === "/editor" || pathname.startsWith("/editor/")) return <header className="desk-chrome"><Link href="/editor" aria-label="knowai editorial home"><Logo /></Link><span>Editorial <span className="desk-private">/ private</span></span><Link className="text-button" href="/" target="_blank">View The Brief ↗</Link></header>;
+
   return (
     <Dialog.Root open={menuOpen} onOpenChange={setMenuOpen}>
       <header className="site-header">
@@ -168,6 +170,8 @@ export function Header() {
   );
 }
 export function Footer() {
+  const pathname = usePathname();
+  if (pathname === "/editor" || pathname.startsWith("/editor/")) return null;
   return (
     <footer className="site-footer">
       <div>

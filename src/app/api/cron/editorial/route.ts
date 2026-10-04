@@ -1,5 +1,5 @@
 import { timingSafeEqual } from "node:crypto";
-import { runEditorialBatch } from "@/lib/editorial/pipeline";
+import { runScheduledEditorial } from "@/lib/editorial/pipeline";
 export const maxDuration = 300;
 export async function GET(request: Request) {
   const expected = process.env.CRON_SECRET
@@ -13,7 +13,7 @@ export async function GET(request: Request) {
   )
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   try {
-    return Response.json(await runEditorialBatch());
+    return Response.json(await runScheduledEditorial());
   } catch {
     return Response.json(
       {

@@ -1,0 +1,170 @@
+import "server-only";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { DeskData, DeskQuery, DeskMutation, DeskResult } from "./desk-types";
+import { requireEditor, serviceDatabase } from "./supabase";
+import { discoverStories, runEditorialBatch } from "./pipeline";
+import { boundedFetch, retrieveImportMetadata } from "./source";
+import { createHash, randomUUID } from "node:crypto";
+import { categorize } from "../news";
+import { parseSuggestion, suggestionRequest } from "./suggestions";
+
+export async function loadDesk(query: DeskQuery): Promise<DeskData> {
+  const {db} = await requireEditor();
+  const safe: DeskQuery = {};
+  for (const key of ['view','id','q','publisher','category','status','since','page'] as const) {
+    if (typeof query[key] === 'string') safe[key] = query[key].slice(0,200);
+  }
+  return rpc<DeskData>(db,'load_brief_desk',{p_query:safe});
+}
+
+type Session = { db: SupabaseClient; user: { id: string } };
+class DeskError extends Error {
+  constructor(message: string, readonly code: "conflict" | "invalid" | "failed" = "invalid") { super(message); }
+}
+const validId = (id: unknown): id is string => typeof id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+function requireId(id: unknown) { if (!validId(id)) throw new DeskError('Select a valid story or revision.'); }
+async function rpc<T>(db: SupabaseClient, name: string, args: Record<string, unknown>): Promise<T> {
+  const {data,error} = await db.rpc(name,args);
+  if (error) {
+    if (/Draft changed|no longer editable|already reviewed|newer publication/i.test(error.message)) throw new DeskError('The draft changed or is no longer editable. Your local text is retained; reload the current version before retrying.', 'conflict');
+    if (error.code === 'P0001') throw new DeskError(error.message);
+    throw new DeskError('Editorial storage failed. Check the migration and try again; your local text is retained.', 'failed');
+  }
+  return data as T;
+}
+
+// Not a server action. Only called with a session already authorized by requireEditor.
+export async function executeDeskMutation(input: DeskMutation, session: Session): Promise<DeskResult> {
+  const result = await performDeskMutation(input,session);
+  if (input && ['suggest','generate','regenerate','run-queued'].includes(input.intent)) {
+    try {
+      const data = await rpc<DeskData>(session.db,'load_brief_desk',{p_query:{view:'sources'}});
+      if (Number.isSafeInteger(data.attemptsToday)) result.attemptsToday = data.attemptsToday;
+    } catch { /* Do not invent a count if the authoritative snapshot is unavailable. */ }
+  }
+  return result;
+}
+async function performDeskMutation(input: DeskMutation, {db,user}: Session): Promise<DeskResult> {
+  try {
+    if (!input || typeof input !== 'object') throw new DeskError('Invalid editorial action.');
+    if ('id' in input) requireId(input.id);
+    if ('version' in input && (!Number.isSafeInteger(input.version) || input.version < 1)) throw new DeskError('Reload this draft before continuing.');
+    if (input.intent === 'discover') {
+      const result = await discoverStories();
+      return {ok:true,message:result.message};
+    }
+    if (input.intent === 'import-url') {
+      if (typeof input.url !== 'string' || input.url.length > 2048) throw new DeskError('Enter a valid approved publisher article URL.');
+      let metadata;
+      try { metadata = await retrieveImportMetadata(input.url); }
+      catch (error) { throw new DeskError(error instanceof Error ? error.message : 'Source metadata could not be read.'); }
+      const service = serviceDatabase();
+      const publisher = await service.from('brief_publishers').select('id').eq('name',metadata.source_name).single();
+      if (publisher.error || !publisher.data) throw new DeskError('The approved publisher is not configured.','failed');
+      const slug = `${metadata.title.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,110)}-${createHash('sha256').update(metadata.url).digest('hex').slice(0,8)}`;
+      const inserted = await service.from('brief_sources').upsert({...metadata,slug,category:categorize(metadata.title),publisher_id:publisher.data.id},{onConflict:'url',ignoreDuplicates:true}).select('id');
+      if (inserted.error) throw new DeskError('The article could not be imported. Try again.','failed');
+      return {ok:true,message:inserted.data?.length?'Article imported to the inbox. No drafts generated.':'This article is already in your desk; its existing selection is unchanged.'};
+    }
+    if (input.intent === 'generate' || input.intent === 'regenerate' || input.intent === 'run-queued') {
+      if (input.confirmCharge !== true) throw new DeskError('Confirm generation may incur charges.');
+      if (!process.env.EDITORIAL_OPENROUTER_API_KEY) throw new DeskError('Set the dedicated editorial OpenRouter key before generating drafts.');
+      let jobs: string[];
+      if (input.intent === 'run-queued') {
+        jobs = await rpc<string[]>(db,'authorize_brief_selected_queue',{});
+        if (!jobs.length) return {ok:true,message:'No selected queued jobs to run.'};
+      } else {
+        const ids = input.intent === 'generate' ? input.ids : [input.id];
+        if (!Array.isArray(ids) || ids.length < 1 || ids.length > 200 || ids.some(id=>!validId(id))) throw new DeskError('Select between 1 and 200 valid sources.');
+        jobs = await rpc<string[]>(db,'enqueue_brief_selection',{p_ids:[...new Set(ids)],p_regenerate:input.intent === 'regenerate'});
+        if (!jobs.length) return {ok:true,message:'No new jobs queued. Existing drafts or failed jobs require explicit regeneration.'};
+      }
+      const result = await runEditorialBatch(jobs);
+      return {ok:true,message:result.message};
+    }
+    if (input.intent === 'suggest') {
+      requireId(input.id);
+      if (!Number.isSafeInteger(input.version) || input.version < 1) throw new DeskError('Reload this draft before continuing.');
+      if (input.confirmCharge !== true) throw new DeskError('Confirm a suggestion may incur charges.');
+      if (!process.env.EDITORIAL_OPENROUTER_API_KEY) throw new DeskError('Set the dedicated editorial OpenRouter key before requesting suggestions.');
+      if (!['oneLiner','shortVersion','wholePicture','whyItMatters'].includes(input.field) || !['simplify','shorten','alternative'].includes(input.instruction)) throw new DeskError('Choose a supported field and editing task.');
+      // Read once before reservation: never mix a newer draft with an older version,
+      // and use its immutable source capture rather than refetching the article.
+      const {active: draft} = await rpc<DeskData>(db,'load_brief_desk',{p_query:{id:input.id}});
+      if (!draft || draft.id !== input.id || draft.version !== input.version || draft.state !== 'needs_review') throw new DeskError('The draft changed or is no longer editable. Your local text is retained; reload the current version before retrying.','conflict');
+      if (typeof draft.source_text !== 'string' || !draft.source_text.trim() || draft.source_text.length > 60000) throw new DeskError('This draft has no usable source capture. Review the source and explicitly regenerate the draft before requesting suggestions.');
+      const service = serviceDatabase();
+      const token = randomUUID();
+      const acquired = await rpc<boolean>(service,'acquire_brief_worker',{p_token:token});
+      if (acquired !== true) throw new DeskError('Another editorial worker is already running. Retry after it finishes.');
+      try {
+        const reservation = await rpc<string>(service,'reserve_brief_suggestion',{p_token:token,p_id:input.id,p_version:input.version,p_field:input.field,p_instruction:input.instruction,p_actor:user.id});
+        if (!validId(reservation)) throw new DeskError('The suggestion attempt could not be reserved. No model request was made.','failed');
+        const model = process.env.EDITORIAL_MODEL || 'openai/gpt-4.1-mini';
+        const audit = async (values: Record<string,unknown>) => {
+          const {error} = await service.from('brief_suggestions').update(values).eq('id',reservation);
+          if (error) throw new DeskError('Suggestion audit could not be saved. A request may still have incurred a charge.','failed');
+        };
+        let reportedUsage: {cost:number|null;input_tokens:number|null;output_tokens:number|null} = {cost:null,input_tokens:null,output_tokens:null};
+        try {
+          await audit({model});
+          const response = JSON.parse(await boundedFetch('https://openrouter.ai/api/v1/chat/completions',{
+            method:'POST',
+            headers:{Authorization:`Bearer ${process.env.EDITORIAL_OPENROUTER_API_KEY}`,'Content-Type':'application/json','X-Title':'knowai editorial'},
+            body:JSON.stringify(suggestionRequest(model,draft.brief_sources.title,draft.source_text,draft.content,input.field,input.instruction)),
+            signal:AbortSignal.timeout(45000),
+          },100000));
+          const usage = response?.usage;
+          const cost = typeof usage?.cost === 'number' && Number.isFinite(usage.cost) && usage.cost >= 0 ? usage.cost : null;
+          const tokens = (value: unknown) => typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 2147483647 ? value : null;
+          // Persist usage before validating: invalid/truncated completions may be billed.
+          reportedUsage = {cost,input_tokens:tokens(usage?.prompt_tokens),output_tokens:tokens(usage?.completion_tokens)};
+          await audit(reportedUsage);
+          const value = parseSuggestion(response,draft.content,draft.source_text,input.field);
+          await audit({state:'complete',finished_at:new Date().toISOString()});
+          return {ok:true,message:'Suggestion ready for review. Nothing has been applied or saved.',suggestion:{field:input.field,value,cost}};
+        } catch (error) {
+          const message = error instanceof DeskError ? error.message : 'Suggestion generation or validation failed. Nothing was changed. A request may still have incurred a charge.';
+          await audit({...reportedUsage,state:'failed',error:message,finished_at:new Date().toISOString()});
+          throw new DeskError(message,'failed');
+        }
+      } finally {
+        await rpc(service,'release_brief_worker',{p_token:token});
+      }
+    }
+    if (input.intent === 'publish' || input.intent === 'reject') {
+      const publish = input.intent === 'publish';
+      if (publish && (input.sourceChecked !== true || input.tiersChecked !== true)) throw new DeskError('Confirm the source and all tiers were reviewed against this saved version.');
+      const slug = await rpc<string>(db,'review_brief_desk',{p_id:input.id,p_version:input.version,p_publish:publish,p_source_checked:publish && input.sourceChecked,p_tiers_checked:publish && input.tiersChecked});
+      return {ok:true,message:publish?'Story published. All three versions are live.':'Draft rejected. Existing publications are unchanged.',slug};
+    }
+    if (input.intent === 'fork' || input.intent === 'restore') {
+      if (input.intent === 'restore') requireId(input.historyId);
+      const revisionId = await rpc<string>(db,input.intent === 'fork'?'fork_brief_revision':'restore_brief_revision',input.intent === 'fork'?{p_id:input.id}:{p_id:input.id,p_history_id:input.historyId});
+      return {ok:true,message:'New editable revision created. The published story is unchanged.',revisionId};
+    }
+    if (input.intent === 'triage') {
+      if (!Array.isArray(input.ids) || input.ids.length < 1 || input.ids.length > 200 || input.ids.some(id=>!validId(id)) || !['inbox','selected','saved','dismissed'].includes(input.state)) throw new DeskError('Select between 1 and 200 valid sources.');
+      await rpc(db,'triage_brief_sources',{p_ids:[...new Set(input.ids)],p_state:input.state});
+      return {ok:true,message:'Selection updated.'};
+    }
+    if (input.intent === 'publisher') {
+      if (typeof input.enabled !== 'boolean') throw new DeskError('Invalid publisher setting.');
+      await rpc(db,'set_brief_publisher',{p_id:input.id,p_enabled:input.enabled});
+      return {ok:true,message:input.enabled?'Publisher enabled.':'Publisher disabled for discovery.'};
+    }
+    if (input.intent === 'auto-draft') {
+      if (typeof input.enabled !== 'boolean' || (input.enabled && input.confirmCharge !== true)) throw new DeskError('Confirm automatic drafting may incur charges.');
+      await rpc(db,'set_brief_auto_draft',{p_enabled:input.enabled,p_confirm_charge:input.confirmCharge === true});
+      return {ok:true,message:input.enabled?'Automatic drafting enabled. Publication still requires review.':'Automatic drafting disabled. Discovery remains free.'};
+    }
+    if (input.intent === 'save') {
+      if (JSON.stringify(input.content).length > 60000) throw new DeskError('The draft is too large.');
+      const version = await rpc<number>(db,'save_brief_desk',{p_id:input.id,p_version:input.version,p_content:input.content});
+      return {ok:true,message:'Draft saved. It is still unpublished.',version};
+    }
+    throw new DeskError('Unknown editorial action.');
+  } catch (error) {
+    return {ok:false,code:error instanceof DeskError ? error.code : 'failed',message:error instanceof DeskError ? error.message : 'The editorial action failed. Your local text is retained; try again.'};
+  }
+}

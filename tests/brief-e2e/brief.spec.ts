@@ -139,7 +139,7 @@ test("editor and cron deny unauthenticated access; public pages pass accessibili
   await expect(
     page.getByRole("button", { name: "Send a sign-in link" }),
   ).toBeVisible();
-  await expect(page.locator(".editor-form")).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Story workspace" })).toHaveCount(0);
   expect((await request.get("/api/cron/editorial")).status()).toBe(401);
   for (const path of [
     "/?depth=quick",
@@ -204,8 +204,9 @@ test("editor saves a correction privately, requires review, then publishes the s
       path: "/",
     },
   ]);
-  await page.goto("/editor?id=10000000-0000-4000-8000-000000000001");
-  await expect(page.locator(".editor-form")).toBeVisible();
+  await page.request.post("http://127.0.0.1:4310/_fixture/reset");
+  await page.goto("/editor?view=drafts&id=10000000-0000-4000-8000-000000000001");
+  await expect(page.getByRole("region", { name: "Story workspace" })).toBeVisible();
   const a11y = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
     .analyze();
@@ -218,10 +219,11 @@ test("editor saves a correction privately, requires review, then publishes the s
   await page.getByRole("textbox", { name: /^The one-liner/ }).fill(revised);
   await page.getByRole("button", { name: "Save draft", exact: true }).click();
   await expect(
-    page.getByText("needs review · Revision version 2"),
-  ).toBeVisible();
+    page.locator(".desk-work-actions"),
+  ).toContainText("Version 2");
   const publicBefore = await page.request.get("/api/brief");
   expect(await publicBefore.text()).not.toContain(revised);
+  await page.getByRole("button", { name: "Start final review" }).click();
   await page
     .getByLabel("I checked the original source and the factual claims.")
     .check();
@@ -231,6 +233,9 @@ test("editor saves a correction privately, requires review, then publishes the s
     )
     .check();
   await page.getByRole("button", { name: "Approve and publish" }).click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  expect(await (await page.request.get("/api/brief")).text()).not.toContain(revised);
+  await page.getByRole("button", { name: "Confirm publication" }).click();
   await expect(
     page.getByRole("button", { name: "Create an editable revision" }),
   ).toBeVisible();

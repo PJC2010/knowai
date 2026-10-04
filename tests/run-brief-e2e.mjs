@@ -27,7 +27,7 @@ const run = (command, args) =>
   });
 try {
   let ready = false;
-  for (let i = 0; i < 50; i++) {
+  for (let i = 0; i < 300; i++) {
     try {
       const response = await fetch("http://127.0.0.1:4310/health");
       if (response.ok) {

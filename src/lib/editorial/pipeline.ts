@@ -7,15 +7,6 @@ import { generationRequest, parseGeneratedTiers } from "./generation";
 import { normalizeSourceUrl } from "../brief";
 import { categorize, plainText } from "../news";
 
-const feeds = [
-  ["OpenAI", "https://openai.com/news/rss.xml"],
-  ["Google", "https://blog.google/technology/ai/rss/"],
-  ["Hugging Face", "https://huggingface.co/blog/feed.xml"],
-  [
-    "TechCrunch",
-    "https://techcrunch.com/category/artificial-intelligence/feed/",
-  ],
-];
 const hash = (text: string) => createHash("sha256").update(text).digest("hex");
 const check = (error: { message: string } | null) => {
   if (error)
@@ -28,7 +19,12 @@ export async function discoverStories() {
   const db = serviceDatabase();
   let discovered = 0;
   const unavailable: string[] = [];
-  for (const [name, url] of feeds) {
+  const discoveredIds: string[] = [];
+  const publishers = await db.from("brief_publishers").select("id,name,feed_url").eq("enabled", true);
+  check(publishers.error);
+  for (const publisher of publishers.data || []) {
+    const { id: publisherId, name, feed_url: url } = publisher;
+    check((await db.from("brief_publishers").update({last_attempt_at: new Date().toISOString()}).eq("id",publisherId)).error);
     try {
       const raw = await boundedFetch(
         url,
@@ -37,8 +33,9 @@ export async function discoverStories() {
         3,
       );
       const xml = new XMLParser({ processEntities: false }).parse(raw);
-      const items = xml.rss?.channel?.item;
-      if (!Array.isArray(items)) throw new Error("Invalid feed");
+      const entries = xml.rss?.channel?.item;
+      if (!xml.rss?.channel) throw new Error("Invalid feed");
+      const items = Array.isArray(entries) ? entries : entries ? [entries] : [];
       for (const item of items.slice(0, 8)) {
         let canonical: string;
         try {
@@ -77,40 +74,38 @@ export async function discoverStories() {
               source_name: sourceName,
               source_published_at: date.toISOString(),
               category: categorize(title),
+              publisher_id: publisherId,
             },
             { onConflict: "url", ignoreDuplicates: true },
           )
           .select("id");
         check(inserted.error);
-        // Also repair discovery interrupted between inserting a source and enqueueing its first job.
-        const existing =
-          inserted.data?.[0] ||
-          (
-            await db
-              .from("brief_sources")
-              .select("id")
-              .eq("url", canonical)
-              .single()
-          ).data;
-        if (existing) {
-          const queued = await db
-            .from("brief_jobs")
-            .upsert(
-              { story_id: existing.id, dedupe_key: `${existing.id}:first` },
-              { onConflict: "dedupe_key", ignoreDuplicates: true },
-            );
-          check(queued.error);
-          if (inserted.data?.length) discovered++;
+        if (inserted.data?.length) {
+          discovered++;
+          discoveredIds.push(inserted.data[0].id);
         }
       }
+      check((await db.from("brief_publishers").update({last_success_at:new Date().toISOString(),last_error:null}).eq("id",publisherId)).error);
     } catch {
       unavailable.push(name);
+      check((await db.from("brief_publishers").update({last_error:"Feed retrieval or validation failed. Try refreshing again."}).eq("id",publisherId)).error);
     }
   }
-  return { discovered, unavailable };
+  return { discovered, discoveredIds, unavailable, message: `${discovered} new stories discovered. No drafts generated.${unavailable.length ? ` Unavailable feeds: ${unavailable.join(", ")}.` : ""}` };
 }
 
-export async function runEditorialBatch(discover = true) {
+export async function runScheduledEditorial() {
+  const discovery = await discoverStories();
+  const db = serviceDatabase();
+  const setting = await db.from("brief_settings").select("auto_draft").eq("id",true).single();
+  check(setting.error);
+  if (!setting.data?.auto_draft) return discovery;
+  check((await db.rpc("enqueue_brief_auto",{p_ids:discovery.discoveredIds})).error);
+  const batch = await runEditorialBatch(null);
+  return {...discovery,...batch};
+}
+
+export async function runEditorialBatch(jobIds: string[] | null = []) {
   if (!process.env.EDITORIAL_OPENROUTER_API_KEY)
     throw new Error(
       "Set the dedicated editorial OpenRouter key before generating drafts.",
@@ -128,13 +123,10 @@ export async function runEditorialBatch(discover = true) {
   let generated = 0,
     failed = 0;
   try {
-    const discovery = discover
-      ? await discoverStories()
-      : { discovered: 0, unavailable: [] };
     const start = Date.now();
     // At most three calls per run, ten reserved attempts per UTC day in SQL.
     for (let i = 0; i < 3 && Date.now() - start < 150000; i++) {
-      const claimed = await db.rpc("claim_brief_job", { p_token: token });
+      const claimed = await db.rpc("claim_brief_selected_job", { p_token: token, p_job_ids: jobIds });
       check(claimed.error);
       const job = claimed.data?.[0];
       if (!job) break;
@@ -239,10 +231,9 @@ export async function runEditorialBatch(discover = true) {
       }
     }
     return {
-      ...discovery,
       generated,
       failed,
-      message: `${generated} drafts ready for review; ${failed} need attention.${discovery.unavailable.length ? ` Unavailable feeds: ${discovery.unavailable.join(", ")}.` : ""}`,
+      message: `${generated} drafts ready for review; ${failed} need attention. Remaining selected jobs stay queued; the daily limit is ten attempts.`,
     };
   } finally {
     await db.rpc("release_brief_worker", { p_token: token });
