@@ -1,12 +1,11 @@
 "use server";
-import { randomUUID } from "node:crypto";
 import { revalidatePath, revalidateTag } from "next/cache";
 import {
   sessionDatabase,
   requireEditor,
-  serviceDatabase,
 } from "@/lib/editorial/supabase";
-import { runEditorialBatch } from "@/lib/editorial/pipeline";
+import { discoverStories } from "@/lib/editorial/pipeline";
+import { mutateDesk } from "./desk-actions";
 import { importStarterDrafts } from "@/lib/editorial/starters";
 import { siteUrl } from "@/lib/site-url";
 import { validateTiers, type Tiers } from "@/lib/brief";
@@ -56,7 +55,7 @@ export async function editorialAction(
       return { ok: true, message };
     }
     if (intent === "refresh") {
-      const result = await runEditorialBatch();
+      const result = await discoverStories();
       revalidatePath("/editor");
       return { ok: true, message: result.message };
     }
@@ -65,19 +64,9 @@ export async function editorialAction(
     if (intent === "regenerate") {
       if (form.get("confirmCharge") !== "yes")
         throw new Error("Confirm that regeneration can incur a new charge.");
-      const exists = await db
-        .from("brief_sources")
-        .select("id")
-        .eq("id", id)
-        .single();
-      if (exists.error) throw new Error("Story not found.");
-      const inserted = await serviceDatabase()
-        .from("brief_jobs")
-        .insert({ story_id: id, dedupe_key: `${id}:manual:${randomUUID()}` });
-      if (inserted.error) throw new Error("Could not queue regeneration.");
-      const result = await runEditorialBatch(false);
+      const result = await mutateDesk({intent:"regenerate",id,confirmCharge:true});
       revalidatePath("/editor");
-      return { ok: true, message: `Regeneration queued. ${result.message}` };
+      return result;
     }
     if (intent === "fork") {
       const { data, error } = await db.rpc("fork_brief_revision", { p_id: id });

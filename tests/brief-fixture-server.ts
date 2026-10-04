@@ -1,146 +1,82 @@
-// Local-only Supabase HTTP fixture. Never imported by application routes.
+// Local-only Supabase fixture backed by the actual migrations. Never imported by app routes.
 import { createServer } from "node:http";
+import { readFile, readdir } from "node:fs/promises";
+import { PGlite } from "@electric-sql/pglite";
 import starters from "../src/data/editorial-starters.json";
+import { fixtureRest } from "./helpers/editorial-fixture-rest";
 
-const stamp = "2026-10-04T09:00:00.000Z";
-const sources = starters.map((s, i) => ({
-  ...s,
-  content: undefined,
-  id: `00000000-0000-4000-8000-${String(i + 1).padStart(12, "0")}`,
-}));
-const publications = starters.map((s, i) => ({
-  id: sources[i].id,
-  slug: s.slug,
-  source_url: s.url,
-  source_name: s.source_name,
-  source_published_at: s.source_published_at,
-  category: s.category,
-  one_liner: s.content.oneLiner,
-  short_version: s.content.shortVersion,
-  whole_picture: s.content.wholePicture,
-  why_it_matters: s.content.whyItMatters,
-  published_at: stamp,
-  updated_at: stamp,
-  edition_date: "2026-10-04",
-}));
-const revision: Record<string, any> = {
-  id: "10000000-0000-4000-8000-000000000001",
-  story_id: sources[0].id,
-  content: structuredClone(starters[0].content),
-  source_text:
-    "PRIVATE_CAPTURE_FOR_REVIEW " +
-    starters[0].content.evidence.map((e) => e.quote).join(" "),
-  source_hash: "fixture",
-  state: "needs_review",
-  version: 1,
-  created_at: stamp,
-  reviewed_at: null,
-  brief_sources: sources[0],
-};
 const actor = "11111111-1111-4111-8111-111111111111";
-const otpRequests: unknown[] = [];
-const server = createServer(async (req, res) => {
-  const url = new URL(req.url || "/", "http://127.0.0.1:4310");
-  const send = (status: number, body: unknown) => {
-    res.writeHead(status, {
-      "Content-Type": "application/json",
-      "X-Supabase-Api-Version": "2024-01-01",
-    });
-    res.end(JSON.stringify(body));
+const stamp = "2026-10-04T09:00:00.000Z";
+const sourceId = (i:number) => `00000000-0000-4000-8000-${String(i+1).padStart(12,'0')}`;
+const revisionId = "10000000-0000-4000-8000-000000000001";
+const db = new PGlite();
+await db.exec(`create schema auth; create table auth.users(id uuid primary key);
+create role anon; create role authenticated; create role service_role bypassrls;
+alter default privileges in schema public grant execute on functions to anon,authenticated;
+create function auth.uid() returns uuid language sql as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
+grant usage on schema public,auth to anon,authenticated,service_role;`);
+const migrationDir = new URL('../supabase/migrations/',import.meta.url);
+for(const file of (await readdir(migrationDir)).filter(f=>f.endsWith('.sql')).sort())
+  await db.exec(await readFile(new URL(file,migrationDir),'utf8'));
+await db.query('insert into auth.users(id) values($1)',[actor]);
+await db.query('insert into brief_editors(user_id) values($1)',[actor]);
+async function seed() {
+  await db.exec('truncate brief_revision_history,brief_publications,brief_revisions,brief_jobs,brief_sources cascade');
+  for(const [i,s] of starters.entries()) {
+    await db.query('insert into brief_sources(id,slug,url,title,source_name,source_published_at,category) values($1,$2,$3,$4,$5,$6,$7)',[sourceId(i),s.slug,s.url,s.title,s.source_name,s.source_published_at,s.category]);
+    await db.query('insert into brief_publications(id,slug,source_url,source_name,source_published_at,category,one_liner,short_version,whole_picture,why_it_matters,published_at,updated_at,edition_date) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$11,$12)',[sourceId(i),s.slug,s.url,s.source_name,s.source_published_at,s.category,s.content.oneLiner,s.content.shortVersion,s.content.wholePicture,s.content.whyItMatters,stamp,'2026-10-04']);
+  }
+  await db.query('insert into brief_revisions(id,story_id,content,source_text,source_hash,created_at) values($1,$2,$3,$4,$5,$6)',[revisionId,sourceId(0),JSON.stringify(starters[0].content),'PRIVATE_CAPTURE_FOR_REVIEW '+starters[0].content.evidence.map(e=>e.quote).join(' '),'fixture',stamp]);
+  for(const [i,s] of starters.entries()) {
+    await db.query('insert into brief_revisions(id,story_id,content,source_text,source_hash,state,reviewed_by,reviewed_at,created_at) values($1,$2,$3,$4,$5,$6,$7,$8,$8)',[`20000000-0000-4000-8000-${String(i+1).padStart(12,'0')}`,sourceId(i),JSON.stringify(s.content),'PRIVATE_CAPTURE_FOR_REVIEW '+s.content.evidence.map(e=>e.quote).join(' '),'fixture','published',actor,stamp]);
+  }
+  // Clearly identified example candidates, never represented as real reporting.
+  for(let i=4;i<135;i++)
+    await db.query('insert into brief_sources(id,slug,url,title,source_name,source_published_at,category) values($1,$2,$3,$4,$5,$6,$7)',[sourceId(i),`fixture-candidate-${i}`,`https://openai.com/fixture-candidate-${i}`,`Fixture candidate ${String(i).padStart(2,'0')} — a sample AI research story for editor testing`,'OpenAI',stamp,'Research']);
+  if ((await db.query("select 1 from information_schema.tables where table_name='brief_publishers'")).rows.length) {
+    await db.exec("update brief_sources s set publisher_id=p.id from brief_publishers p where s.source_name=p.name; update brief_publishers set enabled=true,last_attempt_at=null,last_success_at=null,last_error=null; update brief_settings set auto_draft=false; update brief_worker_lock set token=null,expires_at=null;");
+  }
+}
+await seed();
+const otpRequests:unknown[]=[];
+let saveFailure:'none'|'conflict'|'network'='none';
+let saveDelay=0;
+const server=createServer(async(req,res)=>{
+  const url=new URL(req.url||'/', 'http://127.0.0.1:4310');
+  const send=(status:number,body:unknown,extra:Record<string,string>={})=>{
+    res.writeHead(status,{'Content-Type':'application/json','X-Supabase-Api-Version':'2024-01-01',...extra});
+    res.end(req.method==='HEAD'?'':JSON.stringify(body));
   };
-  const auth = req.headers.authorization || "";
-  const editor =
-    auth.startsWith("Bearer ey") && auth.includes(".editor-fixture-signature");
-  if (url.pathname === "/health") return send(200, { ready: true });
-  if (url.pathname === "/_fixture/otp-requests") return send(200, otpRequests);
-  if (url.pathname === "/auth/v1/otp") {
-    let body = "";
-    for await (const chunk of req) body += chunk;
-    otpRequests.push({
-      ...JSON.parse(body),
-      redirect_to: url.searchParams.get("redirect_to"),
-    });
-    if (otpRequests.length > 1)
-      return send(429, {
-        code: "over_email_send_rate_limit",
-        msg: "email rate limit exceeded",
-      });
-    return send(403, {
-      code: "email_address_not_authorized",
-      msg: "Email address not authorized",
-    });
-  }
-  if (url.pathname === "/auth/v1/user")
-    return editor
-      ? send(200, {
-          id: actor,
-          aud: "authenticated",
-          role: "authenticated",
-          email: "editor@example.test",
-          email_confirmed_at: stamp,
-          created_at: stamp,
-          app_metadata: { provider: "email" },
-          user_metadata: {},
-          identities: [],
-        })
-      : send(401, { message: "Unauthorized" });
-  if (url.pathname === "/rest/v1/rpc/is_brief_editor") return send(200, editor);
-  if (url.pathname === "/rest/v1/brief_publications") {
-    const rows = url.searchParams.has("slug")
-      ? publications.filter(
-          (p) => p.slug === url.searchParams.get("slug")?.replace(/^eq\./, ""),
-        )
-      : publications;
-    return send(
-      200,
-      req.headers.accept?.includes("vnd.pgrst.object") ? rows[0] : rows,
-    );
-  }
-  if (!editor) return send(403, { message: "Editor access required" });
-  if (url.pathname === "/rest/v1/brief_revisions") {
-    const state = url.searchParams.get("state")?.replace(/^eq\./, "");
-    const id = url.searchParams.get("id")?.replace(/^eq\./, "");
-    const rows =
-      (!state || revision.state === state) && (!id || revision.id === id)
-        ? [revision]
-        : [];
-    return send(
-      200,
-      req.headers.accept?.includes("vnd.pgrst.object") ? rows[0] : rows,
-    );
-  }
-  if (
-    url.pathname === "/rest/v1/brief_jobs" ||
-    url.pathname === "/rest/v1/brief_revision_history"
-  )
-    return send(200, []);
-  let body = "";
-  for await (const chunk of req) body += chunk;
-  const args = body ? JSON.parse(body) : {};
-  if (url.pathname === "/rest/v1/rpc/save_brief_revision") {
-    if (args.p_version !== revision.version)
-      return send(409, { message: "stale version" });
-    revision.content = args.p_content;
-    revision.version++;
-    return send(200, null);
-  }
-  if (url.pathname === "/rest/v1/rpc/review_brief_revision") {
-    if (args.p_version !== revision.version)
-      return send(409, { message: "stale version" });
-    revision.state = args.p_publish ? "published" : "rejected";
-    revision.version++;
-    if (args.p_publish) {
-      publications[0].one_liner = revision.content.oneLiner;
-      publications[0].short_version = revision.content.shortVersion;
-      publications[0].whole_picture = revision.content.wholePicture;
-      publications[0].why_it_matters = revision.content.whyItMatters;
-      publications[0].updated_at = "2026-10-04T10:00:00.000Z";
+  try {
+    const auth=req.headers.authorization||'';
+    const editor=auth.startsWith('Bearer ey')&&auth.includes('.editor-fixture-signature');
+    const service=auth==='Bearer fixture-service-key';
+    let raw=''; for await(const chunk of req)raw+=chunk;
+    const args=raw?JSON.parse(raw):{};
+    if(url.pathname==='/health')return send(200,{ready:true});
+    if(url.pathname==='/_fixture/otp-requests')return send(200,otpRequests);
+    if(url.pathname==='/_fixture/reset'&&req.method==='POST'){await seed(); saveFailure='none'; saveDelay=0; return send(200,{ok:true});}
+    if(url.pathname==='/_fixture/save-behavior'&&req.method==='POST'){saveFailure=args.failure||'none';saveDelay=Math.min(5000,Number(args.delay)||0);return send(200,{ok:true});}
+    if(url.pathname==='/auth/v1/otp'){
+      otpRequests.push({...args,redirect_to:url.searchParams.get('redirect_to')});
+      return otpRequests.length>1?send(429,{code:'over_email_send_rate_limit',msg:'email rate limit exceeded'}):send(403,{code:'email_address_not_authorized',msg:'Email address not authorized'});
     }
-    return send(200, sources[0].slug);
+    if(url.pathname==='/auth/v1/user')return editor?send(200,{id:actor,aud:'authenticated',role:'authenticated',email:'editor@example.test',email_confirmed_at:stamp,created_at:stamp,app_metadata:{provider:'email'},user_metadata:{},identities:[]}):send(401,{message:'Unauthorized'});
+    if(!url.pathname.startsWith('/rest/v1/'))return send(404,{message:'Unknown fixture route'});
+    if(url.pathname.includes('/rpc/save_')&&editor){
+      if(saveDelay)await new Promise(r=>setTimeout(r,saveDelay));
+      if(saveFailure==='network')return send(503,{message:'Fixture temporarily unavailable'});
+      if(saveFailure==='conflict'){
+        await db.query('update brief_revisions set version=version+1 where id=$1',[revisionId]);saveFailure='none';
+      }
+    }
+    const result=await fixtureRest(db,service?'service_role':editor?'authenticated':'anon',url.pathname.slice('/rest/v1'.length)+url.search,req.method||'GET',{accept:req.headers.accept},args,actor);
+    return send(200,result.body,result.total===undefined?{}:{'Content-Range':`0-${Math.max(0,(Array.isArray(result.body)?result.body.length:0)-1)}/${result.total}`});
+  } catch(error){
+    const e=error as {message:string;code?:string};
+    console.error('[fixture]',url.pathname,e.message);
+    return send(e.code==='42501'?403:400,{message:e.message,code:e.code||'FIXTURE_ERROR'});
   }
-  return send(404, { message: "Fixture route not implemented" });
 });
-server.listen(4310, "127.0.0.1", () =>
-  console.log("Local editorial fixture ready"),
-);
-process.on("SIGTERM", () => server.close());
+server.listen(4310,'127.0.0.1',()=>console.log('Local editorial SQL fixture ready'));
+process.on('SIGTERM',()=>server.close(()=>void db.close()));

@@ -65,6 +65,33 @@ export function extractSource(html: string): string {
     );
   return text;
 }
+export async function retrieveImportMetadata(input: string) {
+  const url = normalizeSourceUrl(input);
+  const html = await boundedFetch(url, {}, 2_000_000, 3);
+  const { document } = parseHTML(html);
+  const title = (document.querySelector('meta[property="og:title"]')?.getAttribute('content') || document.querySelector('title')?.textContent || '').replace(/\s+/gu,' ').trim().slice(0,500);
+  if (!title) throw new Error('The source did not provide an article title. Try its original article URL.');
+  let published = document.querySelector('meta[property="article:published_time"]')?.getAttribute('content') || document.querySelector('meta[itemprop="datePublished"]')?.getAttribute('content');
+  if (!published) {
+    const dates = (value: unknown): string | undefined => {
+      if (Array.isArray(value)) return value.map(dates).find(Boolean);
+      if (!value || typeof value !== 'object') return;
+      const item = value as Record<string, unknown>;
+      if (typeof item.datePublished === 'string' && /Article|BlogPosting/.test(String(item['@type']))) return item.datePublished;
+      return dates(item['@graph']);
+    };
+    for (const script of document.querySelectorAll('script[type="application/ld+json"]')) {
+      try { published = dates(JSON.parse(script.textContent || '')); } catch { /* Unusable metadata is not a publication date. */ }
+      if (published) break;
+    }
+  }
+  const date = published ? new Date(published) : null;
+  if (!date || !Number.isFinite(date.getTime()) || date.getTime() > Date.now()+300000)
+    throw new Error('No trustworthy original publication date was found. Import from a dated publisher feed instead; today’s date will not be invented.');
+  const names: Record<string,string> = {'openai.com':'OpenAI','blog.google':'Google','huggingface.co':'Hugging Face','techcrunch.com':'TechCrunch'};
+  return {url,title,source_published_at:date.toISOString(),source_name:names[new URL(url).hostname]};
+}
+
 export async function retrieveSource(url: string) {
   return extractSource(
     await boundedFetch(
