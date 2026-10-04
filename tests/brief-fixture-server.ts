@@ -38,16 +38,38 @@ const revision: Record<string, any> = {
   brief_sources: sources[0],
 };
 const actor = "11111111-1111-4111-8111-111111111111";
+const otpRequests: unknown[] = [];
 const server = createServer(async (req, res) => {
   const url = new URL(req.url || "/", "http://127.0.0.1:4310");
   const send = (status: number, body: unknown) => {
-    res.writeHead(status, { "Content-Type": "application/json" });
+    res.writeHead(status, {
+      "Content-Type": "application/json",
+      "X-Supabase-Api-Version": "2024-01-01",
+    });
     res.end(JSON.stringify(body));
   };
   const auth = req.headers.authorization || "";
   const editor =
     auth.startsWith("Bearer ey") && auth.includes(".editor-fixture-signature");
   if (url.pathname === "/health") return send(200, { ready: true });
+  if (url.pathname === "/_fixture/otp-requests") return send(200, otpRequests);
+  if (url.pathname === "/auth/v1/otp") {
+    let body = "";
+    for await (const chunk of req) body += chunk;
+    otpRequests.push({
+      ...JSON.parse(body),
+      redirect_to: url.searchParams.get("redirect_to"),
+    });
+    if (otpRequests.length > 1)
+      return send(429, {
+        code: "over_email_send_rate_limit",
+        msg: "email rate limit exceeded",
+      });
+    return send(403, {
+      code: "email_address_not_authorized",
+      msg: "Email address not authorized",
+    });
+  }
   if (url.pathname === "/auth/v1/user")
     return editor
       ? send(200, {

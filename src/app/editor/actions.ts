@@ -10,6 +10,7 @@ import { runEditorialBatch } from "@/lib/editorial/pipeline";
 import { importStarterDrafts } from "@/lib/editorial/starters";
 import { siteUrl } from "@/lib/site-url";
 import { validateTiers, type Tiers } from "@/lib/brief";
+import { requestEditorLogin } from "@/lib/editorial/login";
 
 export type EditorActionState = {
   ok: boolean;
@@ -20,40 +21,22 @@ export async function loginEditor(
   _: EditorActionState,
   form: FormData,
 ): Promise<EditorActionState> {
-  const email = String(form.get("email") || "")
-    .trim()
-    .toLowerCase();
-  const allowed = (process.env.EDITOR_EMAIL_ALLOWLIST || "")
-    .split(",")
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-  if (!email || email.length > 254)
-    return { ok: false, message: "Enter your editor email address." };
-  if (allowed.includes(email)) {
-    try {
+  return requestEditorLogin(String(form.get("email") || ""), {
+    allowlist: process.env.EDITOR_EMAIL_ALLOWLIST,
+    report: (diagnostic) => {
+      console.info("[editor-signin]", diagnostic);
+    },
+    sendLink: async (email) => {
       const db = await sessionDatabase();
-      const { error } = await db.auth.signInWithOtp({
+      return db.auth.signInWithOtp({
         email,
         options: {
           shouldCreateUser: false,
           emailRedirectTo: `${siteUrl()}/editor/callback`,
         },
       });
-      if (error)
-        return {
-          ok: false,
-          message:
-            "Could not send the sign-in link. Check your configuration or try again later.",
-        };
-    } catch {
-      return { ok: false, message: "Editor sign-in is not configured yet." };
-    }
-  }
-  return {
-    ok: true,
-    message:
-      "If this address is authorized, a sign-in link is on its way. Open it in this browser.",
-  };
+    },
+  });
 }
 export async function logoutEditor() {
   const db = await sessionDatabase();

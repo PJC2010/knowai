@@ -2,6 +2,42 @@ import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import starters from "../../src/data/editorial-starters.json" with { type: "json" };
 
+test("editor sign-in only contacts Supabase for allowed emails and explains delivery restrictions", async ({
+  page,
+  request,
+}) => {
+  const attempts = async () =>
+    (await request.get("http://127.0.0.1:4310/_fixture/otp-requests")).json();
+  const before = (await attempts()).length;
+  await page.goto("/editor");
+  await page.getByLabel("Editor email").fill("outsider@example.test");
+  await page.getByRole("button", { name: "Send a sign-in link" }).click();
+  await expect(page.getByRole("status")).toContainText(
+    "If this address is authorized",
+  );
+  expect((await attempts()).length).toBe(before);
+  await page.getByLabel("Editor email").fill("editor@example.test");
+  await page.getByRole("button", { name: "Send a sign-in link" }).click();
+  await expect(page.getByRole("status")).toContainText(
+    "email provider is restricting delivery",
+  );
+  const requests = await attempts();
+  expect(requests).toHaveLength(before + 1);
+  expect(requests.at(-1)).toMatchObject({
+    email: "editor@example.test",
+    create_user: false,
+    redirect_to: "http://127.0.0.1:4311/editor/callback",
+    code_challenge_method: "s256",
+  });
+  expect(requests.at(-1).code_challenge).toBeTruthy();
+  await page.getByLabel("Editor email").fill("editor@example.test");
+  await page.getByRole("button", { name: "Send a sign-in link" }).click();
+  await expect(page.getByRole("status")).toContainText(
+    "Too many sign-in requests",
+  );
+  expect((await attempts()).length).toBe(before + 2);
+});
+
 test("normal is the default; individual expansion stays inline and global controls reset overrides", async ({
   page,
 }) => {

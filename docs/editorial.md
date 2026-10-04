@@ -34,6 +34,30 @@ The updated script uses `IF NOT EXISTS` for tables and indexes, replaces its fun
 
 Running SQL manually does not record a Supabase CLI migration. If you later switch to `supabase db push`, reconcile the CLI migration history after verifying the schema. The updated script also tolerates a first CLI application over this matching schema.
 
+## Editor sign-in: no email arrives
+
+The app does not create accounts during sign-in (`shouldCreateUser: false`). An account used to log in to the Supabase dashboard is **not** automatically a user in your project's **Authentication → Users**. Create the editor there first, complete verification, and grant `brief_editors` access using the SQL above. Creating database tables does not create an Auth user.
+
+The login form also checks `EDITOR_EMAIL_ALLOWLIST` in the active Vercel deployment. Set it for the deployment's environment and redeploy after changes. Missing configuration now reports a setup error. An address outside the allowlist gets a neutral response and no email request; the same neutral response is used when the provider accepts an allowed address, to keep membership private. Provider acceptance is not proof of inbox delivery.
+
+To diagnose an attempt, open Vercel project **Logs**, filter for `/editor`, and search for `[editor-signin]`. These logs contain only a reason, a recognized provider error code, and an HTTP status—no email addresses, keys, links, or tokens. They are available after deploying the sign-in diagnostics update.
+
+| Log reason / code | What to check |
+| --- | --- |
+| `allowlist_missing` | Set `EDITOR_EMAIL_ALLOWLIST` and redeploy. |
+| `not_allowlisted` | Check the exact submitted email against the deployed allowlist, including which Vercel environment was configured. |
+| `provider_rejected` / `otp_disabled`, `signup_disabled`, or `user_not_found` | Confirm the account exists in Authentication → Users and email/magic-link authentication is enabled. Check Supabase Auth logs for the exact cause; keep public sign-ups disabled. |
+| `provider_rejected` / `email_address_not_authorized` | Supabase's default SMTP restricts recipients to organization team members. Configure custom SMTP for other recipients; an Auth user alone does not satisfy this restriction. |
+| `provider_rejected` / `over_email_send_rate_limit`, `over_request_rate_limit`, or HTTP 429 | Wait for the rate limit. Repeated submissions do not speed delivery. Check Authentication rate limits and SMTP provider limits. |
+| `provider_rejected` / `unknown` with HTTP 401 or 403 | Check the Supabase project URL and matching publishable key in Vercel. Do not put a server secret in the publishable-key variable. |
+| Other `provider_rejected` | Open Supabase **Logs → Auth** and inspect the failed `/otp` request. SMTP errors may appear as an unexpected failure; check the sender, credentials, email template, and delivery provider logs. |
+| `request_failed` | Check URL/key configuration and connectivity in the deployed environment. |
+| `provider_accepted` | Check spam and the SMTP provider's delivery/bounce logs. |
+
+Supabase's [default email service](https://supabase.com/docs/guides/auth/auth-smtp) is for initial testing, currently limited to two messages per hour, with no delivery guarantee. Configure custom SMTP for production. Do not add people to your Supabase organization merely to bypass delivery restrictions.
+
+Once email arrives, a link that lands on the wrong page is a separate redirect issue: set `NEXT_PUBLIC_SITE_URL` to the production origin and allow that exact origin plus `/editor/callback` in Supabase URL Configuration. Open the link in the browser that requested it. A successful login followed by an access rejection means checking the verified user and `brief_editors` grant.
+
 ## Ingestion and review
 
 `vercel.json` schedules `/api/cron/editorial` daily at 07:00 UTC, compatible with a daily Vercel cron schedule. Actual delivery time is controlled by the hosting plan. Vercel supplies the `Authorization: Bearer CRON_SECRET` header. Manual refresh uses the same worker. Allow a function duration of up to 300 seconds on the deployment plan.
