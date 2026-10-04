@@ -15,10 +15,9 @@ import {
   ShieldCheck,
   ExternalLink,
   Check,
-  LoaderCircle,
   Wallet,
   Link2,
-} from "lucide-react";
+} from "@/components/icons";
 import { API, apiError } from "@/lib/openrouter";
 
 type Connection = {
@@ -273,11 +272,15 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
                   onClick={connectAccount}
                 >
                   {busy ? (
-                    <LoaderCircle className="spin" size={17} />
+                    <span className="button-progress" aria-hidden="true">
+                      <i />
+                      <i />
+                      <i />
+                    </span>
                   ) : (
                     <Link2 size={17} />
                   )}{" "}
-                  Connect with OpenRouter
+                  {busy ? "Connecting…" : "Connect with OpenRouter"}
                 </button>
                 <div className="or-divider">
                   <span>or use an existing key</span>

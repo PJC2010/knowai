@@ -9,16 +9,16 @@ import {
   Plus,
   FlaskConical,
   ExternalLink,
-} from "lucide-react";
-export const metadata = { title: "AI 101 — Plain-English Guides" };
+} from "@/components/icons";
+export const metadata = { title: "AI 101 — Plain English guides" };
 const lessons = [
   {
     id: "llms",
     icon: BrainCircuit,
     number: "01",
-    tag: "THE BASICS",
+    tag: "The basics",
     title: "What actually is an LLM?",
-    lead: "Think of it as a very well-read pattern finder.",
+    lead: "Think of it as a pattern finder with a very wide reading list.",
     text: "A large language model (LLM) learns patterns from enormous amounts of text. When you give it a prompt, it generates an answer one piece at a time, based on those patterns and the conversation you supply.",
     takeaway:
       "It can write, explain, and reason through tasks. A confident answer can still be wrong: fluency is not the same as truth.",
@@ -27,10 +27,10 @@ const lessons = [
     id: "prompts",
     icon: MessageCircle,
     number: "02",
-    tag: "BETTER QUESTIONS",
+    tag: "Better questions",
     title: "A good prompt is a good brief.",
     lead: "Tell the model what you need, who it’s for, and what “good” looks like.",
-    text: "Instead of “explain climate change,” try “explain climate change to a 12-year-old in three short paragraphs. Include an everyday analogy and distinguish what is well established from what is uncertain.” Add context, specify a format, and refine the answer with follow-up instructions.",
+    text: "Instead of “explain climate change,” try “explain climate change to a child aged 12 in three short paragraphs. Include an everyday analogy and distinguish what is well established from what is uncertain.” Add context, specify a format, and refine the answer with follow-up instructions.",
     takeaway:
       "Clear instructions help. They do not guarantee accuracy. Check important claims against trusted sources.",
   },
@@ -38,7 +38,7 @@ const lessons = [
     id: "tokens",
     icon: Coins,
     number: "03",
-    tag: "THE PRICE TAG",
+    tag: "The price tag",
     title: "Tokens: small pieces, small prices.",
     lead: "Models count pieces of words, not just whole words.",
     text: "A token can be a word, part of a word, or punctuation. For English, one token is roughly four characters, but this varies by language and model. Input tokens are what you send. Output tokens are what the model generates. Providers usually price them separately.",
@@ -49,7 +49,7 @@ const lessons = [
     id: "context",
     icon: Layers,
     number: "04",
-    tag: "THE BIGGER PICTURE",
+    tag: "The bigger picture",
     title: "A context window is working space.",
     lead: "It’s how much information a model can consider at once.",
     text: "The context window is a token budget for the material a model works with: instructions, messages, documents, and its response. A larger window can fit more information, but it does not guarantee the model will notice every detail or give a better answer.",
@@ -60,7 +60,7 @@ const lessons = [
     id: "choose",
     icon: FlaskConical,
     number: "05",
-    tag: "FIND YOUR FIT",
+    tag: "Find your fit",
     title: "There’s no single “best” model.",
     lead: "The right model depends on the job.",
     text: "A small, inexpensive model may be enough for rewriting an email. A harder reasoning task may benefit from a more capable model. Compare the same prompt across models and look at correctness, clarity, style, response time, and cost. One example is useful, but it is not a benchmark.",
@@ -71,7 +71,7 @@ const lessons = [
     id: "privacy",
     icon: ShieldCheck,
     number: "06",
-    tag: "STAY IN CONTROL",
+    tag: "Stay in control",
     title: "Your key. Your credits. Your choices.",
     lead: "An API key is a password that lets an app use a service.",
     text: "OpenRouter connects you to different model providers through one account. You create a key and buy usage credits on OpenRouter. In knowai, your key stays in page memory and requests go directly from your browser to OpenRouter. Refreshing or disconnecting clears the key from knowai.",
@@ -84,7 +84,7 @@ export default function LearnPage() {
     <div className="page-container learn-page">
       <div className="page-heading">
         <span className="eyebrow">
-          AI 101 · NO TECHNICAL BACKGROUND REQUIRED
+          AI 101 · No technical background required
         </span>
         <h1>
           A little knowledge.
@@ -95,7 +95,7 @@ export default function LearnPage() {
       </div>
       <div className="learn-layout">
         <aside className="lesson-nav">
-          <span className="eyebrow">YOUR FIELD GUIDE</span>
+          <span className="eyebrow">Your field guide</span>
           {lessons.map((l) => (
             <a href={`#${l.id}`} key={l.id}>
               <span>{l.number}</span>
@@ -113,7 +113,7 @@ export default function LearnPage() {
         </aside>
         <div className="lessons">
           {lessons.map((l) => (
-            <article id={l.id} key={l.id} className="lesson">
+            <article id={l.id} key={l.id} className="lesson" data-reveal>
               <div className="lesson-top">
                 <span className="lesson-icon">
                   <l.icon size={24} />
@@ -126,19 +126,19 @@ export default function LearnPage() {
               <p className="lesson-lead">{l.lead}</p>
               <p>{l.text}</p>
               <div className="takeaway">
-                <span>THE THING TO REMEMBER</span>
+                <span>The thing to remember</span>
                 <p>{l.takeaway}</p>
               </div>
             </article>
           ))}
         </div>
       </div>
-      <section className="playground-banner">
+      <section className="playground-banner" data-reveal>
         <div className="banner-icon">
           <FlaskConical size={30} />
         </div>
         <div>
-          <span className="eyebrow">LEARN BY DOING</span>
+          <span className="eyebrow">Learn by doing</span>
           <h2>Ready for a little experiment?</h2>
           <p>Try the same question with two models. See what you notice.</p>
         </div>

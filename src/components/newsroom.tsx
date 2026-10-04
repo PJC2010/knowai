@@ -12,7 +12,7 @@ import {
   Radio,
   Newspaper,
   ChevronDown,
-} from "lucide-react";
+} from "@/components/icons";
 import type { NewsData, Model, Article } from "@/lib/types";
 import { dateLabel, formatPrice, formatContext } from "@/lib/format";
 import { ModelMark, providerName } from "./model-mark";
@@ -61,7 +61,7 @@ export function Newsroom({
     <div className="page-container newsroom">
       <div className="edition-line">
         <span>
-          <span className="edition-dot" /> YOUR DAILY DOSE OF CLARITY
+          <span className="edition-dot" /> Your daily AI briefing
         </span>
         <time>
           {new Date(data.fetchedAt).toLocaleDateString("en-US", {
@@ -74,24 +74,20 @@ export function Newsroom({
         </time>
       </div>
       <section className="page-heading home-heading">
-        <div>
-          <h1>
-            A clearer view of{" "}
-            <span className="heading-ai">
-              AI
-              <span aria-hidden="true" className="heading-spark">
-                ✳
-              </span>
-            </span>
-          </h1>
+        <h1>
+          A clearer view
+          <br />
+          of AI<span className="heading-period">.</span>
+        </h1>
+        <div className="home-context">
           <p>
             The news that matters. The models worth knowing. All in plain
             English.
           </p>
+          <Link className="quiet-link" href="/learn">
+            <BookOpen size={16} /> New to AI? Start here
+          </Link>
         </div>
-        <Link className="quiet-link" href="/learn">
-          <BookOpen size={17} /> New to AI? Start here
-        </Link>
       </section>
       {(data.fallback || data.sources.some((s) => !s.ok)) && (
         <div className="notice">
@@ -121,12 +117,12 @@ export function Newsroom({
             <div className="lead-shade" />
             <div className="lead-top">
               <span className="feature-badge">
-                <Sparkles size={13} /> IN FOCUS
+                <Sparkles size={13} /> In focus
               </span>
               <span className="image-note">Editorial illustration</span>
             </div>
             <div className="lead-content">
-              <span className="eyebrow">THE BIG PICTURE</span>
+              <span className="eyebrow">The big picture</span>
               <h2>{lead.title}</h2>
               <p>{lead.description}</p>
               <div className="lead-bottom">
@@ -167,22 +163,20 @@ export function Newsroom({
       )}
       <div className="brief-footnote">
         <Radio size={13} />
-        <span>
-          Fresh from the source. Feeds refresh on visits, every 15 minutes.
-        </span>
+        <span>Source linked. Feeds refresh on visits every 15 minutes.</span>
         <span className="footnote-right">
           OpenAI <span>·</span> Google <span>·</span> Hugging Face{" "}
           <span>·</span> TechCrunch
         </span>
       </div>
-      <section className="latest-section" id="latest">
+      <section className="latest-section" id="latest" data-reveal>
         <div className="section-heading">
           <div className="section-title">
             <Newspaper size={21} />
             <h2>The latest, made simple.</h2>
           </div>
           <span className="section-caption">
-            A few minutes. A little more informed.
+            The newest stories, with original sources.
           </span>
         </div>
         <div className="filter-row">
@@ -247,12 +241,12 @@ export function Newsroom({
           </button>
         )}
       </section>
-      <section className="playground-banner">
+      <section className="playground-banner" data-reveal>
         <div className="banner-icon">
           <FlaskConical size={30} />
         </div>
         <div>
-          <span className="eyebrow">LESS GUESSWORK. MORE HANDS-ON.</span>
+          <span className="eyebrow">An experiment worth trying</span>
           <h2>Same prompt. Different perspectives.</h2>
           <p>Try models side by side. Find your favorite. See what it costs.</p>
         </div>
@@ -260,10 +254,10 @@ export function Newsroom({
           Open the playground <Plus size={17} />
         </Link>
       </section>
-      <section className="spotlight-section">
+      <section className="spotlight-section" data-reveal>
         <div className="section-heading">
           <div>
-            <span className="eyebrow">MEET THE MODELS</span>
+            <span className="eyebrow">Meet the models</span>
             <h2>A few names to know.</h2>
           </div>
           <Link className="quiet-link" href="/models">

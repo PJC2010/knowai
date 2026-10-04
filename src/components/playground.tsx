@@ -10,30 +10,30 @@ import {
   Play,
   Copy,
   Check,
-  LoaderCircle,
   Square,
   KeyRound,
   Info,
   MessageSquare,
   Wallet,
   ChevronDown,
-} from "lucide-react";
+} from "@/components/icons";
 import type { ModelsData, ComparisonResult } from "@/lib/types";
 import { complete, estimateCost } from "@/lib/openrouter";
 import { formatPrice, dateLabel } from "@/lib/format";
 import { ModelMark, providerName } from "./model-mark";
 import { useConnection } from "./connection";
+import { ResponseSkeleton } from "./skeleton";
 
 const prompts = [
   {
     label: "Explain something",
     value:
-      "Explain how a large language model works to a curious 12-year-old. Use one everyday analogy and keep it under 150 words.",
+      "Explain how a large language model works to a curious child aged 12. Use one everyday analogy and keep it under 150 words.",
   },
   {
     label: "Get creative",
     value:
-      "Write a 100-word opening to a story where a houseplant discovers it can hear people’s thoughts. Make it warm and a little funny.",
+      "Write a short opening of about 100 words to a story where a houseplant discovers it can hear people’s thoughts. Make it warm and a little funny.",
   },
   {
     label: "Solve a problem",
@@ -152,7 +152,7 @@ export function Playground({ data }: { data: ModelsData }) {
     <div className="page-container playground-page">
       <div className="page-heading playground-heading">
         <div>
-          <span className="eyebrow">THE PLAYGROUND</span>
+          <span className="eyebrow">The playground</span>
           <h1>
             One prompt. <span className="text-green">A fresh perspective.</span>
           </h1>
@@ -172,7 +172,7 @@ export function Playground({ data }: { data: ModelsData }) {
             <KeyRound size={21} />
           </div>
           <div>
-            <strong>Bring your key. We’ll bring the possibilities.</strong>
+            <strong>One account. Your choice of models.</strong>
             <p>
               Connect OpenRouter to try real models. You pay OpenRouter directly
               for usage.
@@ -198,10 +198,7 @@ export function Playground({ data }: { data: ModelsData }) {
             Browse the model library
           </Link>
         </div>
-        <div
-          className="model-select-grid"
-          style={{ "--model-count": ids.length } as React.CSSProperties}
-        >
+        <div className="model-select-grid" data-count={ids.length}>
           {ids.map((id, index) => {
             const model = data.models.find((m) => m.id === id)!;
             return (
@@ -355,7 +352,7 @@ export function Playground({ data }: { data: ModelsData }) {
         <p className="estimate-note">
           Estimates use about 4 characters per input token and the selected
           output limit. Actual charges vary with tokenization, reasoning,
-          caching and provider pricing. OpenRouter credit-purchase fees are
+          caching and provider pricing. OpenRouter credit purchase fees are
           separate.
         </p>
       </section>
@@ -400,26 +397,21 @@ export function Playground({ data }: { data: ModelsData }) {
               <br />
               with tokens, response time, and the cost of each run.
             </p>
-            <span>No subscriptions to juggle. Just pay for what you try.</span>
+            <span>No knowai subscription. OpenRouter bills your usage.</span>
           </div>
         ) : (
           <>
             <div className="run-prompt">
-              <span>YOUR PROMPT</span>
+              <span>Your prompt</span>
               <p>{runPrompt}</p>
             </div>
-            <div
-              className="comparison-grid"
-              style={
-                { "--result-count": results.length } as React.CSSProperties
-              }
-            >
+            <div className="comparison-grid" data-count={results.length}>
               {results.map((result, index) => (
                 <article className="response-card" key={result.modelId}>
                   <div className="response-heading">
                     <ModelMark provider={result.modelId.split("/")[0]} small />
                     <div>
-                      <span>MODEL {String.fromCharCode(65 + index)}</span>
+                      <span>Model {String.fromCharCode(65 + index)}</span>
                       <h3>{result.modelName}</h3>
                     </div>
                     {result.text && (
@@ -438,9 +430,8 @@ export function Playground({ data }: { data: ModelsData }) {
                   </div>
                   {result.status === "waiting" ? (
                     <div className="response-waiting">
-                      <LoaderCircle className="spin" size={24} />
+                      <ResponseSkeleton />
                       <p>Thinking it through…</p>
-                      <span>Some models take a little longer.</span>
                     </div>
                   ) : result.error ? (
                     <div className="response-error">

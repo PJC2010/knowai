@@ -13,7 +13,7 @@ import {
   ChevronDown,
   ExternalLink,
   SlidersHorizontal,
-} from "lucide-react";
+} from "@/components/icons";
 import type { Model, ModelsData } from "@/lib/types";
 import { featuredModels } from "@/lib/models-client";
 import { formatPrice, formatContext, dateLabel } from "@/lib/format";
@@ -56,7 +56,7 @@ export function ModelLibrary({ data }: { data: ModelsData }) {
   return (
     <div className="page-container library-page">
       <div className="page-heading">
-        <span className="eyebrow">THE MODEL LIBRARY</span>
+        <span className="eyebrow">The model library</span>
         <h1>
           Find your kind of <span className="text-green">intelligence.</span>
         </h1>
@@ -64,7 +64,7 @@ export function ModelLibrary({ data }: { data: ModelsData }) {
       </div>
       <div className="library-explainer">
         <span>
-          <strong>{data.models.length}</strong> text-capable models
+          <strong>{data.models.length}</strong> models for text
         </span>
         <span>
           <strong>One account.</strong> Plenty of possibilities.
@@ -181,7 +181,7 @@ export function ModelLibrary({ data }: { data: ModelsData }) {
             </h2>
             <p className="model-description">
               {model.description ||
-                "A text-capable model available through OpenRouter. Open its details to learn more."}
+                "A model for text available through OpenRouter. Open its details to learn more."}
             </p>
             <div className="modality-tags">
               <span>
@@ -285,7 +285,7 @@ export function ModelLibrary({ data }: { data: ModelsData }) {
                 <Dialog.Title>{detail.name}</Dialog.Title>
                 <Dialog.Description className="model-full-description">
                   {detail.description ||
-                    "A text-capable model available through OpenRouter."}
+                    "A model for text available through OpenRouter."}
                 </Dialog.Description>
                 <dl className="detail-stats">
                   <div>

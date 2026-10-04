@@ -28,6 +28,12 @@ Alternatively, from this directory run `npx vercel`, then `npx vercel --prod` wh
 
 **No environment variables, database, shared API key, or paid news service are required.** End users connect their own OpenRouter accounts. The site is ready for Vercel; this workspace does not contain a Vercel account binding or production deployment.
 
+Social preview URLs use Vercel’s deployment hostname automatically. For a custom domain, optionally set `NEXT_PUBLIC_SITE_URL` to its full HTTPS URL before building.
+
+## Interface
+
+The charcoal interface follows the [Redesign Existing Projects skill](https://github.com/elayadesign/redesign-skill/blob/main/skills/redesign-existing-projects/SKILL.md): Manrope typography, flat neutral surfaces, one green accent, Phosphor icons, and floating navigation. The mobile menu supports keyboard focus and Escape. Loading skeletons, reduced-motion support, Privacy, and Terms are included. The visual refresh preserves source dates, model prices, and comparison accounting.
+
 ## What works
 
 - **The Brief:** RSS news from OpenAI, Google AI, Hugging Face, and TechCrunch; category filtering, source links, source publication dates, and incremental loading. Promotional TechCrunch event offers are filtered. Some known articles have source-checked editorial summaries. Publisher and community attribution is retained.
@@ -64,7 +70,7 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-Browser tests start the production build on port 3100. Set `TEST_BASE_URL` to test an already-running server. The tests cover news filters, model selection/details, mobile layout, mocked key validation, identical prompts to multiple models, partial failures, cost display, truncation warnings, OAuth state rejection and successful callback, and key removal on refresh.
+Browser tests start the production build on port 3100. Set `TEST_BASE_URL` to test an already-running server. The tests cover news filters, model selection/details, mobile layout and keyboard navigation, reduced-motion readability, legal links, mocked key validation, identical prompts to multiple models, partial failures, cost display, truncation warnings, OAuth state rejection and successful callback, and key removal on refresh.
 
 No genuine API key is included. Automated comparison and OAuth tests use network mocks; completing a real paid model request and a real account authorization requires a user's OpenRouter connection.
 

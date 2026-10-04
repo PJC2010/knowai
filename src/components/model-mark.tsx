@@ -5,7 +5,7 @@ import {
   Waves,
   CircleDot,
   Hexagon,
-} from "lucide-react";
+} from "@/components/icons";
 export function ModelMark({
   provider,
   small = false,
@@ -30,7 +30,7 @@ export function ModelMark({
       aria-hidden="true"
       className={`model-mark ${small ? "small" : ""} provider-${provider}`}
     >
-      <Icon size={small ? 20 : 26} strokeWidth={1.7} />
+      <Icon size={small ? 24 : 32} />
     </span>
   );
 }
