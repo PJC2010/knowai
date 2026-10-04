@@ -6,7 +6,7 @@ The four starter texts are versioned examples in this public source repository, 
 
 ## Enable on Vercel
 
-1. Create a Supabase project. Run `supabase/migrations/202610040001_brief.sql` once in its SQL editor, or apply it with the Supabase CLI. The migration enables row-level security and grants anonymous readers access only to approved publications. Do not disable these policies.
+1. Create a Supabase project. Run the complete `supabase/migrations/202610040001_brief.sql` script in its SQL editor, or apply it with the Supabase CLI. The script can be rerun after a complete or partial setup; it preserves existing rows and refreshes its functions and access policies in a transaction. The migration enables row-level security and grants anonymous readers access only to approved publications. Do not disable these policies.
 2. Add the variables from `.env.example` through Vercel **Project → Settings → Environment Variables**. Use the project URL and publishable key from Supabase. Keep `SUPABASE_SECRET_KEY`, `EDITORIAL_OPENROUTER_API_KEY`, and `CRON_SECRET` server-only. Use a dedicated OpenRouter key with a spending limit; do not reuse a visitor's playground key. `CRON_SECRET` should be a randomly generated secret of at least 32 characters. Never put keys in GitHub or chat.
 3. Set `NEXT_PUBLIC_SITE_URL` to the production HTTPS origin. In Supabase Authentication URL Configuration, set the same site URL and allow exactly `https://YOUR-DOMAIN/editor/callback`. Add a separate local callback only if needed for development. Configure production email delivery for reliable magic links. The default Supabase email service has sending restrictions.
 4. Create/invite your editor user through Supabase Authentication and complete email verification. Put the email in `EDITOR_EMAIL_ALLOWLIST`. Grant that user's ID with the SQL below. Disable public sign-ups in Supabase; the app itself uses `shouldCreateUser: false`.
@@ -25,6 +25,14 @@ on conflict do nothing;
 ```
 
 To revoke access, remove the user's row from `brief_editors` and their address from `EDITOR_EMAIL_ALLOWLIST`. Every protected read/mutation checks authorization; knowing `/editor` is not access. Public routes and public REST tables never return drafts, source captures, reviewer IDs, or evidence notes.
+
+## SQL Editor: “relation already exists”
+
+If an earlier copy of the setup script reports `42P07: relation "brief_editors" already exists`, that table was created previously. The message alone does not show whether the rest of the setup completed. Open the latest migration file from this repository, copy its entire contents into a **new SQL Editor query**, and run it as the project's `postgres` role. Do not delete existing tables or continue by skipping individual failing statements.
+
+The updated script uses `IF NOT EXISTS` for tables and indexes, replaces its functions and policies, and inserts the worker lock only when missing. Existing editor grants, stories, drafts, review history, and active worker leases are preserved. The transaction keeps the changes together. This supports repeated application of knowai's schema; it does not reconcile unrelated tables or custom schema changes that happen to use the same names.
+
+Running SQL manually does not record a Supabase CLI migration. If you later switch to `supabase db push`, reconcile the CLI migration history after verifying the schema. The updated script also tolerates a first CLI application over this matching schema.
 
 ## Ingestion and review
 
