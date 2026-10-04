@@ -22,6 +22,23 @@ export default function PrivacyPage() {
       </header>
       <div className="legal-content">
         <section className="legal-section">
+          <h2>The editorial desk</h2>
+          <p>
+            Authorized editors sign in through Supabase. Editor sign-in uses
+            session cookies and stores account information and an audit trail of
+            editorial decisions. Readers do not need an account to read The
+            Brief.
+          </p>
+          <p>
+            When the editorial service is enabled, knowai stores article source
+            captures, AI-assisted drafts, and approved stories in its editorial
+            database. Source text is sent to OpenRouter using a separate
+            publisher-owned key to prepare drafts. This process does not use
+            readers’ playground keys or prompts. Unpublished database drafts and
+            source captures are restricted to authorized editors.
+          </p>
+        </section>
+        <section className="legal-section">
           <h2>Your OpenRouter key</h2>
           <p>
             knowai keeps your connected API key in page memory. It does not save

@@ -1,0 +1,114 @@
+[
+  {
+    "slug": "amazon-data-center-ndas",
+    "title": "Amazon responds to data center backlash, says it no longer uses NDAs",
+    "url": "https://techcrunch.com/2026/10/03/amazon-responds-to-data-center-backlash-says-it-no-longer-uses-ndas/",
+    "source_name": "TechCrunch",
+    "source_published_at": "2026-10-03T18:43:57+00:00",
+    "category": "Industry",
+    "content": {
+      "oneLiner": "Amazon says it dropped data center NDAs with government agencies; rebuilding trust is a bigger job.",
+      "shortVersion": "Amazon Web Services says it no longer uses nondisclosure agreements with government agencies on its data center projects. CEO Matt Garman made the announcement while defending the facilities against criticism over water, power, pollution, and community benefits. The change addresses one transparency concern. It does not settle the wider debate about what these projects cost their neighbors.",
+      "wholePicture": [
+        "Amazon Web Services, Amazon’s cloud computing business, says it has stopped using nondisclosure agreements with government agencies involved in its data center projects. An NDA limits what people can disclose. In this case, the important distinction is who the promise covers: government agencies, according to CEO Matt Garman’s statement. The reporting does not establish a blanket end to confidentiality agreements with every nearby resident or business.",
+        "Garman announced the change in a broader defense of data centers. He argued that critics overstate their effects on water use, electricity bills, and pollution, and understate their community benefits. TechCrunch also describes objections to those arguments, including the difference between water used inside a facility and water used to produce its electricity and chips. The article presents a disputed public debate, not an independent finding that Amazon has resolved these concerns.",
+        "For people living near a proposed project, the useful question is what information will become available and when. Ending an NDA requirement could remove one barrier to public discussion, but the announcement alone does not establish how local officials will share plans or address environmental concerns. The change is specific; the test of transparency is what communities can actually learn."
+      ],
+      "whyItMatters": "An end to government NDAs addresses one barrier to scrutiny, not every concern about a nearby data center.",
+      "evidence": [
+        {
+          "claim": "The announced change concerns government agencies.",
+          "quote": "We no longer use nondisclosure agreements with the government agencies we work with on our projects."
+        },
+        {
+          "claim": "The broader backlash includes concern about transparency.",
+          "quote": "the number one complaint she’s heard about data centers is transparency"
+        }
+      ]
+    }
+  },
+  {
+    "slug": "astabrief-open-scientific-reports",
+    "title": "Open-sourcing AstaBrief, the fast report-generation model in Asta",
+    "url": "https://huggingface.co/blog/allenai/astabrief",
+    "source_name": "Ai2 on Hugging Face",
+    "source_published_at": "2026-10-02T15:19:50Z",
+    "category": "Research",
+    "content": {
+      "oneLiner": "Ai2 releases AstaBrief for cited science reports, with benchmark comparisons largely dating to 2025.",
+      "shortVersion": "Ai2 has released AstaBrief 8B, an open model that turns a research question and retrieved scientific excerpts into a report with citations. It powers Fast mode in Asta and comes with training data. The practical appeal is quicker reports and the option to run the model locally. Its published comparisons mostly reflect work done in 2025, not a fresh contest against today’s leading models.",
+      "wholePicture": [
+        "Ai2, the AI research organization behind the Asta scientific research platform, has released AstaBrief 8B and its training data. The model takes a research question plus excerpts found in the scientific literature and writes a report with citations. It is available through Asta’s Fast mode, alongside a separate Thinking mode powered by Claude. Open model weights also give institutions the option to run it on their own infrastructure.",
+        "The team built on Qwen3-8B and trained the model specifically for scientific report writing. One design change was to generate the report in a single pass instead of assembling it section by section. Ai2 reports faster results in the system it tested, but includes an important limit: most of the training and evaluation happened in 2025, and it has not repeated the full comparison against current frontier models.",
+        "For researchers, the release offers a concrete way to experiment with faster, locally controlled literature reports. It does not make citation checking optional. A citation can point to a real paper while the surrounding sentence still overstates what that paper found. Ai2 explicitly discusses that distinction, so the useful next step is to inspect whether each cited study supports the particular claim being made."
+      ],
+      "whyItMatters": "Researchers get a downloadable report-writing model, while the evaluation dates keep its performance claims in perspective.",
+      "evidence": [
+        {
+          "claim": "AstaBrief produces cited reports from retrieved literature.",
+          "quote": "We built AstaBrief 8B, a model that turns a research question and retrieved literature excerpts into a cited report."
+        },
+        {
+          "claim": "The comparisons have not been fully rerun against current frontier models.",
+          "quote": "We haven’t rerun the full evaluation against today’s frontier models;"
+        }
+      ]
+    }
+  },
+  {
+    "slug": "open-tts-leaderboard",
+    "title": "Open TTS Leaderboard: Scalable Evaluation for Multilingual Text-to-Speech and Voice Cloning",
+    "url": "https://huggingface.co/blog/open-tts-leaderboard",
+    "source_name": "Hugging Face",
+    "source_published_at": "2026-09-30T00:00:00Z",
+    "category": "Tools",
+    "content": {
+      "oneLiner": "Hugging Face adds a leaderboard for open speech models; the best score still isn’t the same as the best voice.",
+      "shortVersion": "Hugging Face’s Open TTS Leaderboard compares speech models on intelligibility, speed, and how closely a generated voice matches a reference. It supports multiple languages and includes audio examples to hear yourself. The scores make more models easier to compare, but the creators are clear: automated measurements do not directly tell you which voice sounds natural or which one listeners prefer.",
+      "wholePicture": [
+        "Hugging Face has introduced the Open TTS Leaderboard to make open text-to-speech models easier to compare. These models turn written text into spoken audio. The project measures several different things: how accurately the spoken words match the input, how quickly a model produces audio, and, for voice cloning, how similar the output is to a reference speaker.",
+        "The distinction matters because there is no single number for a good voice. The team uses speech recognition to estimate word or character errors, but that is a proxy for intelligibility. Speaker similarity is another limited measure. Neither directly captures naturalness, expression, or personal preference. The leaderboard therefore complements existing listening-based rankings rather than claiming to replace them.",
+        "For someone choosing a voice model, the practical value is the ability to compare a relevant language and use case instead of relying on an English-only overall ranking. A separate streaming view measures how long it takes before playable audio arrives, which matters for interactive assistants. The listening view lets readers hear examples behind the scores. Use those features together: narrow the options with measurements, then listen before deciding which voice suits the job."
+      ],
+      "whyItMatters": "Choosing a speech model gets more transparent when you can compare separate measures and hear the outputs behind them.",
+      "evidence": [
+        {
+          "claim": "The leaderboard complements human preference rankings.",
+          "quote": "the Open TTS Leaderboard does not replace human preference ranking."
+        },
+        {
+          "claim": "Automated measures do not directly measure voice naturalness or preference.",
+          "quote": "Neither directly measures naturalness, expressiveness, or listener preference."
+        }
+      ]
+    }
+  },
+  {
+    "slug": "gpt-6-model-choice-guide",
+    "title": "A practical guide to building with GPT-6",
+    "url": "https://openai.com/index/practical-guide-building-gpt-6",
+    "source_name": "OpenAI",
+    "source_published_at": "2026-10-02T16:15:00Z",
+    "category": "Models",
+    "content": {
+      "oneLiner": "OpenAI’s GPT-6 guide makes a useful point: choose the model for the job, then measure what getting it done costs.",
+      "shortVersion": "OpenAI’s practical guide to GPT-6 focuses on matching a model and its reasoning settings to the work. It also covers clearer instructions, long tasks, and production checks. The takeaway for builders is straightforward: compare successful results, response time, and total cost on realistic tasks. A more capable or faster setting is only useful when its extra expense buys something you need.",
+      "wholePicture": [
+        "OpenAI’s guide to building with GPT-6 describes how developers should choose models, write instructions, and manage work that takes more than a single response. The company presents different models for different workloads and treats reasoning effort as another choice. More reasoning can help with difficult work, while simpler requests may need less. These are the provider’s recommendations, not an independent ranking of competing products.",
+        "The guide also emphasizes the surrounding workflow. It recommends defining the desired result, supplying relevant context, and making clear when the model can act independently or should ask for input. For longer work, it describes ways to preserve useful context and continue across multiple steps. Reusing stable instructions through caching can also affect costs, so the price of one uncached message is not necessarily the price of an entire workflow.",
+        "For someone comparing models in knowai, the most transferable advice is to test representative tasks and measure success, latency, and cost per successful task. A fast answer that requires repeated correction may be less useful than a slower answer that works. Conversely, an expensive setting is not automatically the sensible default for routine requests. Start with the actual job, compare its outputs, and treat the result as evidence about that task rather than a universal winner."
+      ],
+      "whyItMatters": "A model’s practical value depends on whether it completes your task, not just its name or its price per token.",
+      "evidence": [
+        {
+          "claim": "The guide recommends measuring success, latency, and cost.",
+          "quote": "Run representative tasks and measure task success, latency, and cost per successful task."
+        },
+        {
+          "claim": "Model choice and reasoning level involve a tradeoff.",
+          "quote": "Think of the model choice and reasoning level as an intelligence/ price tradeoff."
+        }
+      ]
+    }
+  }
+]

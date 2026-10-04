@@ -1,0 +1,36 @@
+import { createServerClient } from "@supabase/ssr";
+import { NextResponse, type NextRequest } from "next/server";
+import { siteUrl } from "./lib/site-url";
+export async function proxy(request: NextRequest) {
+  let response = NextResponse.next({ request });
+  if (
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    !process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+  )
+    return response;
+  const db = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    {
+      cookieOptions: {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: siteUrl().startsWith("https://"),
+      },
+      cookies: {
+        getAll: () => request.cookies.getAll(),
+        setAll(items) {
+          items.forEach(({ name, value }) => request.cookies.set(name, value));
+          response = NextResponse.next({ request });
+          items.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options),
+          );
+        },
+      },
+    },
+  );
+  await db.auth.getUser();
+  response.headers.set("Cache-Control", "private, no-store");
+  return response;
+}
+export const config = { matcher: ["/editor/:path*"] };

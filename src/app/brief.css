@@ -1,0 +1,667 @@
+/* The Brief's reading system uses the shared charcoal design tokens. */
+.brief-hero {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  align-items: end;
+  gap: 3rem;
+  padding-bottom: 4rem;
+}
+.brief-hero h1 {
+  font-size: 3.75rem;
+  line-height: 1;
+  margin-bottom: 0;
+}
+.brief-hero p {
+  max-width: 36ch;
+  font-size: 1rem;
+  line-height: 1.5rem;
+}
+.brief-toolbar,
+.brief-controls,
+.brief-digest-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1.5rem;
+}
+.brief-toolbar {
+  padding: 2rem;
+  background: var(--surface);
+  border-radius: 1.5rem 1.5rem 0 0;
+}
+.brief-toolbar h2 {
+  font-size: 1.5rem;
+  line-height: 2rem;
+}
+.brief-toolbar p {
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: var(--muted);
+}
+.depth-toggle {
+  display: inline-flex;
+  background: var(--canvas);
+  padding: 0.25rem;
+  border-radius: 9999px;
+  gap: 0.25rem;
+}
+.depth-toggle button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  border-radius: 9999px;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 600;
+}
+.depth-toggle button[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.depth-toggle button:hover {
+  color: var(--ink);
+}
+.depth-toggle button[aria-pressed="true"]:hover {
+  color: var(--accent-ink);
+  background: var(--ink);
+}
+.brief-controls {
+  padding: 1.5rem 0;
+  flex-wrap: wrap;
+}
+.edition-picker {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--muted);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+.edition-picker select {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+.brief-list {
+  display: grid;
+  gap: 1rem;
+}
+.brief-card {
+  padding: 2rem;
+  background: var(--surface);
+  border: 1px solid transparent;
+  border-radius: 1rem;
+  scroll-margin-top: 8rem;
+}
+.brief-card:focus {
+  border-color: var(--accent);
+}
+.brief-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+.brief-number {
+  color: var(--muted);
+}
+.brief-source {
+  margin-left: auto;
+  color: var(--muted);
+}
+.brief-version-link {
+  display: inline-grid;
+  place-items: center;
+  color: var(--muted);
+  padding: 0.25rem;
+}
+.brief-version-link:hover {
+  color: var(--accent);
+}
+.brief-headline {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  width: 100%;
+  gap: 2rem;
+  padding: 0;
+  text-align: left;
+  font: inherit;
+  color: var(--ink);
+  border: 0;
+  background: transparent;
+}
+.brief-headline:hover {
+  color: var(--accent);
+}
+.brief-headline svg {
+  margin-top: 0.25rem;
+  color: var(--muted);
+}
+.brief-card h3 {
+  max-width: none;
+  font-size: 1.5rem;
+  line-height: 2rem;
+  font-weight: 500;
+}
+.brief-short,
+.brief-full {
+  max-width: 65ch;
+  margin-top: 1.5rem;
+}
+.brief-short > p,
+.brief-full > p {
+  margin-top: 0.75rem;
+  font-size: 1rem;
+  line-height: 1.5rem;
+}
+.brief-full > p + p {
+  margin-top: 1.5rem;
+}
+.brief-full .small-link {
+  margin-top: 1.5rem;
+  text-decoration: underline;
+  text-underline-offset: 0.25rem;
+}
+.brief-full .eyebrow {
+  color: var(--accent);
+}
+.brief-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 2rem;
+  margin-top: 1.5rem;
+}
+.brief-card-actions button {
+  border: 0;
+  background: transparent;
+  padding: 0.5rem 0;
+}
+.brief-card-actions a {
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+.brief-card[data-depth="deep"] .brief-card-actions button svg {
+  transform: rotate(180deg);
+}
+.brief-matters {
+  background: var(--surface-raised);
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  margin: 1.5rem 0;
+}
+.brief-matters strong {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: var(--accent);
+}
+.brief-matters p {
+  margin-top: 0.5rem;
+}
+.brief-card[data-depth="quick"] {
+  padding: 1rem 1.5rem;
+}
+.brief-card[data-depth="quick"] h3 {
+  font-size: 1.125rem;
+  line-height: 1.75rem;
+}
+.brief-card[data-depth="quick"] .brief-card-meta {
+  margin-bottom: 0.5rem;
+}
+.brief-page[data-depth="quick"] .brief-hero {
+  padding: 2rem 0;
+}
+.brief-page[data-depth="quick"] .brief-hero h1 {
+  font-size: 2.25rem;
+  line-height: 2.5rem;
+}
+.brief-page[data-depth="quick"] .brief-hero .eyebrow {
+  margin-bottom: 0.75rem;
+}
+.brief-page[data-depth="quick"] .brief-list {
+  gap: 0.5rem;
+}
+.brief-page[data-depth="quick"] .brief-toolbar {
+  padding: 1.5rem;
+}
+.brief-digest-bar {
+  margin-top: 1.5rem;
+  flex-wrap: wrap;
+}
+.keyboard-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+kbd {
+  font: inherit;
+  background: var(--surface-raised);
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  color: var(--ink);
+}
+.copy-fallback {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+.copy-fallback textarea {
+  width: 100%;
+  min-height: 16rem;
+  padding: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+}
+.brief-next {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-top: 4rem;
+}
+.brief-next a {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 2rem;
+  border-radius: 1rem;
+  background: var(--surface);
+}
+.brief-next a:hover {
+  background: var(--surface-raised);
+}
+.brief-next a > svg:last-child {
+  margin-left: auto;
+}
+.brief-next span {
+  color: var(--muted);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+.brief-next strong {
+  display: block;
+  color: var(--ink);
+  margin-top: 0.5rem;
+  font-weight: 500;
+  font-size: 1rem;
+  line-height: 1.5rem;
+}
+.story-page {
+  max-width: 60rem;
+}
+.story-page .page-heading h1 {
+  max-width: 24ch;
+  font-size: 3rem;
+  line-height: 1;
+}
+.story-kicker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin: 3rem 0 1.5rem;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  color: var(--muted);
+}
+.story-page .story-dates {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+.story-depth-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+.story-depth-links a {
+  text-decoration: underline;
+  text-underline-offset: 0.25rem;
+}
+.story-section {
+  margin-top: 3rem;
+  max-width: 65ch;
+  scroll-margin-top: 8rem;
+}
+.story-section h2 {
+  font-size: 1.5rem;
+  line-height: 2rem;
+  margin-bottom: 1.5rem;
+}
+.story-section > p + p {
+  margin-top: 1.5rem;
+}
+.story-section > p {
+  font-size: 1.125rem;
+  line-height: 1.75rem;
+}
+.story-section:target h2 {
+  color: var(--accent);
+}
+.editor-page {
+  padding-bottom: 4rem;
+}
+.editor-top,
+.editor-section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 2rem;
+}
+.editor-login {
+  max-width: 32rem;
+  display: grid;
+  gap: 1.5rem;
+}
+.editor-login label,
+.editor-form label {
+  display: grid;
+  gap: 0.75rem;
+  font-weight: 500;
+  font-size: 1rem;
+  line-height: 1.5rem;
+}
+.editor-login input,
+.editor-form input:not([type="checkbox"]),
+.editor-form textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  background: var(--canvas);
+  color: var(--ink);
+}
+.editor-login input {
+  background: var(--surface);
+}
+.editor-job-action {
+  display: grid;
+  gap: 1rem;
+  justify-items: start;
+}
+.editor-job-action > p {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+.editor-import-actions {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+.editor-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 2rem 0;
+}
+.editor-tabs a {
+  padding: 0.75rem 1rem;
+  background: var(--surface);
+  border-radius: 0.5rem;
+}
+.editor-tabs a[aria-current="page"] {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.editor-queue {
+  display: grid;
+  gap: 0.75rem;
+  max-height: 28rem;
+  overflow-y: auto;
+  padding: 0.5rem;
+  margin: -0.5rem;
+}
+.editor-queue-item,
+.editor-queue > article {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  background: var(--surface);
+  border: 1px solid transparent;
+}
+.editor-queue-item[aria-current="true"] {
+  border-color: var(--accent);
+}
+.editor-queue-item > span,
+.editor-queue-item > small {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  color: var(--muted);
+}
+.revision-editor {
+  margin-top: 3rem;
+}
+.editor-section-heading {
+  margin-bottom: 2rem;
+}
+.editor-section-heading h2 {
+  margin-top: 0.75rem;
+  font-size: 1.5rem;
+  line-height: 2rem;
+}
+.editor-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: 2rem;
+  align-items: start;
+}
+.editor-source,
+.editor-form {
+  background: var(--surface);
+  border-radius: 1rem;
+  padding: 1.5rem;
+}
+.editor-source {
+  position: sticky;
+  top: 7rem;
+}
+.editor-source > a {
+  display: block;
+  margin-top: 1rem;
+  color: var(--accent);
+  text-decoration: underline;
+}
+.editor-source > p {
+  margin: 1rem 0;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: var(--muted);
+}
+.source-capture {
+  max-height: 60dvh;
+  overflow-y: auto;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: 1rem;
+  background: var(--canvas);
+  border-radius: 0.5rem;
+}
+.editor-form {
+  display: grid;
+  gap: 1.5rem;
+}
+.editor-form label > span {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  color: var(--muted);
+  font-weight: 400;
+}
+.editor-form textarea {
+  resize: vertical;
+  min-height: 5rem;
+}
+.editor-evidence {
+  min-width: 0;
+  display: grid;
+  gap: 1.5rem;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+.editor-evidence > div {
+  display: grid;
+  gap: 1rem;
+}
+.editor-form .editor-check,
+.editor-check {
+  display: flex;
+  gap: 0.75rem;
+  align-items: start;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 400;
+}
+.editor-check input {
+  margin: 0.25rem 0 0;
+  flex-shrink: 0;
+}
+.editor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.editor-preview {
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  overflow: hidden;
+  margin-bottom: 2rem;
+  padding-bottom: 2rem;
+}
+.editor-preview .brief-next,
+.editor-preview .brief-digest-bar {
+  display: none;
+}
+.editor-history {
+  margin-top: 3rem;
+}
+.editor-history details {
+  margin-top: 1rem;
+  background: var(--surface);
+  padding: 1rem;
+  border-radius: 0.5rem;
+}
+.editor-history pre {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  font-family: var(--font);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+@media (max-width: 63.999rem) {
+  .brief-hero {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  .editor-columns {
+    grid-template-columns: 1fr;
+  }
+  .editor-source {
+    position: static;
+  }
+  .source-capture {
+    max-height: 20rem;
+  }
+  .brief-toolbar {
+    flex-wrap: wrap;
+  }
+  .brief-next {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 35.999rem) {
+  .brief-hero h1 {
+    font-size: 3rem;
+    line-height: 1;
+  }
+  .brief-hero {
+    padding: 2rem 0;
+  }
+  .brief-toolbar {
+    padding: 1.5rem 1rem;
+    gap: 1.5rem;
+  }
+  .depth-toggle {
+    width: 100%;
+  }
+  .depth-toggle button {
+    flex: 1;
+    padding: 0.75rem 0.5rem;
+  }
+  .brief-controls {
+    gap: 1rem;
+  }
+  .brief-controls .filter-tabs {
+    gap: 0;
+  }
+  .brief-controls .filter-tabs button {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.75rem;
+    line-height: 1rem;
+  }
+  .brief-card,
+  .brief-card[data-depth="quick"] {
+    padding: 1.5rem 1rem;
+  }
+  .brief-card h3 {
+    font-size: 1.25rem;
+    line-height: 1.75rem;
+  }
+  .brief-headline {
+    gap: 0.75rem;
+  }
+  .brief-card-meta {
+    flex-wrap: wrap;
+    gap: 0.5rem 0.75rem;
+  }
+  .brief-source {
+    width: 100%;
+    margin-left: 0;
+  }
+  .brief-digest-bar {
+    gap: 1.5rem;
+  }
+  .brief-digest-bar .button {
+    width: 100%;
+    white-space: normal;
+  }
+  .keyboard-hint {
+    display: none;
+  }
+  .brief-next a {
+    padding: 1.5rem;
+    gap: 1rem;
+  }
+  .story-page .page-heading h1 {
+    font-size: 2.25rem;
+    line-height: 2.5rem;
+  }
+  .story-section .button {
+    white-space: normal;
+  }
+  .editor-section-heading,
+  .editor-top {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .editor-form,
+  .editor-source {
+    padding: 1rem;
+  }
+  .editor-page .button {
+    white-space: normal;
+  }
+}

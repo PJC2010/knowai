@@ -20,6 +20,18 @@ export default function TermsPage() {
       </header>
       <div className="legal-content">
         <section className="legal-section">
+          <h2>The three-depth briefing</h2>
+          <p>
+            Stories in the three-depth format are AI-assisted editorial
+            summaries approved by a knowai editor. Each version is an
+            interpretation of the linked reporting, not a substitute for the
+            original source. Source publication dates and knowai publication
+            dates may differ. A short summary necessarily leaves out details;
+            use the whole picture and original source when the distinction
+            matters.
+          </p>
+        </section>
+        <section className="legal-section">
           <h2>Information for learning</h2>
           <p>
             knowai brings together public AI news, introductory guides, model

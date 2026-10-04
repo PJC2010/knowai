@@ -4,6 +4,7 @@ import "@fontsource/manrope/500.css";
 import "@fontsource/manrope/600.css";
 import "@fontsource/manrope/700.css";
 import "./globals.css";
+import "./brief.css";
 import { Header, Footer } from "@/components/shell";
 import { ConnectionProvider } from "@/components/connection";
 import { ScrollReveals } from "@/components/reveal";

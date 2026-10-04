@@ -26,7 +26,7 @@ npm start
 
 Alternatively, from this directory run `npx vercel`, then `npx vercel --prod` when ready to publish.
 
-**No environment variables, database, shared API key, or paid news service are required.** End users connect their own OpenRouter accounts. The site is ready for Vercel; this workspace does not contain a Vercel account binding or production deployment.
+The existing RSS homepage and playground run without a database or shared API key. **The new three-depth Brief and private editorial desk require Supabase and a dedicated editorial OpenRouter key.** Follow [editorial setup](docs/editorial.md) before enabling `BRIEF_V2_ENABLED`. Readers still connect their own OpenRouter accounts only for playground usage. This workspace does not contain a Vercel account binding or production deployment.
 
 Social preview URLs use Vercel’s deployment hostname automatically. For a custom domain, optionally set `NEXT_PUBLIC_SITE_URL` to its full HTTPS URL before building.
 
@@ -36,7 +36,10 @@ The charcoal interface follows the [Redesign Existing Projects skill](https://gi
 
 ## What works
 
-- **The Brief:** RSS news from OpenAI, Google AI, Hugging Face, and TechCrunch; category filtering, source links, source publication dates, and incremental loading. Promotional TechCrunch event offers are filtered. Some known articles have source-checked editorial summaries. Publisher and community attribution is retained.
+- **Three-depth Brief:** Quick scan, Normal, and Deep reading modes; inline story expansion; keyboard navigation; dated, copyable editions; and permanent story pages with all three tiers in server-rendered HTML. Activation waits for backend configuration and a first approved story.
+- **Private editorial desk:** `/editor` uses Supabase email sign-in and an editor allowlist. Source-grounded OpenRouter drafts, four importable starter drafts, evidence checks, revision history, and explicit human approval. Daily cron and manual refresh share deduplication, a worker lease, and a daily attempt cap. See [setup, workflow, and validation](docs/editorial.md).
+
+- **Legacy Brief (before activation):** RSS news from OpenAI, Google AI, Hugging Face, and TechCrunch; category filtering, source links, source publication dates, and incremental loading. Promotional TechCrunch event offers are filtered. Some known articles have source-checked editorial summaries. Publisher and community attribution is retained.
 - **Model Library:** live OpenRouter text-model catalog, provider/search/free-model filters, price sorting, full model details, and selection of up to three models to compare. Batch models and automatic routers are excluded from direct model comparison.
 - **Playground:** select one to three models, send an identical prompt concurrently, compare responses, copy an answer, and inspect tokens, elapsed time, and each request's cost. Supports partial failures, cancellation, timeouts, missing-cost estimates, output-limit warnings, and billed responses with no visible text.
 - **AI 101:** six plain-language guides covering LLMs, prompts, tokens, context windows, model selection, and API keys.
@@ -54,6 +57,8 @@ Before running, estimated charges use an approximate input token count plus the 
 
 ## Freshness and fallback data
 
+The three-depth Brief reads approved database publications. Source discovery runs daily or from the editor; publishing updates the relevant caches. Original source dates and knowai publication dates are distinct. If the activated editorial database fails, the app shows an error rather than substituting unreviewed stories. The following RSS fallback behavior applies to the legacy homepage.
+
 News fetches are cached for 15 minutes; the model catalog for 30 minutes. Next.js revalidates them when visitors request pages after the cache interval. This is request-triggered revalidation, not a scheduled background news scraper or push feed. Refresh an open tab to get the latest rendered briefing.
 
 If a source fails, available feeds still render. If all feeds or the model API fail, the app uses a checked-in snapshot and labels the saved data and its date. Source dates are retained rather than presenting older stories as new. Model prices are USD per one million tokens.
@@ -65,12 +70,15 @@ Sources and editorial summaries live in `src/lib/news.ts` and `src/data/news-sna
 ```bash
 npm run typecheck
 npm test
+npm run test:brief
 npm run build
 npx playwright install chromium
 npm run test:e2e
 ```
 
 Browser tests start the production build on port 3100. Set `TEST_BASE_URL` to test an already-running server. The tests cover news filters, model selection/details, mobile layout and keyboard navigation, reduced-motion readability, legal links, mocked key validation, identical prompts to multiple models, partial failures, cost display, truncation warnings, OAuth state rejection and successful callback, and key removal on refresh.
+
+The dedicated Brief browser suite uses a local Supabase HTTP fixture; database tests execute the actual migration and access policies in isolated PGlite. Run a normal build after `test:brief` because it uses fixture configuration.
 
 No genuine API key is included. Automated comparison and OAuth tests use network mocks; completing a real paid model request and a real account authorization requires a user's OpenRouter connection.
 
