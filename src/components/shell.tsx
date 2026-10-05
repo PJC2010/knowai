@@ -183,6 +183,7 @@ export function Footer() {
       <div className="footer-links">
         <Link href="/learn">AI, explained</Link>
         <Link href="/playground">Try a model</Link>
+        <a className="footer-rss" href="/feed.xml" type="application/rss+xml" aria-describedby="rss-help">Subscribe via RSS</a>
         <Link href="/privacy">Privacy</Link>
         <Link href="/terms">Terms</Link>
         <a href="https://openrouter.ai" target="_blank" rel="noreferrer">
@@ -191,6 +192,8 @@ export function Footer() {
       </div>
       <p className="footer-fine">
         Independent perspectives. Original sources. Always curious.
+        <br />
+        <span id="rss-help">Add the RSS feed link to your reader. New stories appear after editorial review.</span>
       </p>
     </footer>
   );

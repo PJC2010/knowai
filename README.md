@@ -65,6 +65,18 @@ If a source fails, available feeds still render. If all feeds or the model API f
 
 Sources and editorial summaries live in `src/lib/news.ts` and `src/data/news-snapshot.json`. Model data is normalized in `src/lib/models.ts`. Local snapshots were retrieved on October 3, 2026. The original green-glass editorial image is generated artwork and labeled as an illustration.
 
+## Product roadmap
+
+See [the prioritized todo roadmap](docs/roadmap.md) for the website-analysis recommendations, what is already built versus live, acceptance criteria, and remaining release gates.
+
+## Follow The Brief via RSS
+
+Add `/feed.xml` on your deployment to an RSS reader, or use **Subscribe via RSS** in the public footer. Pages also advertise the feed for reader autodiscovery. The feed contains up to 50 of the latest **editor-approved publications**, one item per story, with a short version, why it matters, attribution, and a permanent knowai link. It updates as stories are published, not on a guaranteed daily send schedule. This is not an email signup.
+
+An empty editorial database produces a valid empty feed; it does not substitute raw headlines or starter drafts. The public publication reader supplies the existing five-minute, tag-invalidated cache. Like the existing public reader, its time-based refresh can serve previously approved cached content while revalidation runs or fails; this is not a guarantee of a fresh database read on every request. HTTP clients must revalidate; uncached retrieval failures return a non-cacheable 503 with a five-minute retry hint. RSS works independently of the reader-homepage rollout flag, just like permanent article pages. Feed readers may retain copies of published content; withdrawal cannot remove copies already downloaded.
+
+No database migration, mailing-list service, additional credentials, or model calls are required. Configure `NEXT_PUBLIC_SITE_URL` to the canonical production origin before rollout so feed item URLs and GUIDs remain stable. Changing domains can appear as new entries to subscribers.
+
 ## Validation
 
 ```bash

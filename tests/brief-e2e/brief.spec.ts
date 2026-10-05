@@ -223,6 +223,8 @@ test("editor saves a correction privately, requires review, then publishes the s
   ).toContainText("Version 2");
   const publicBefore = await page.request.get("/api/brief");
   expect(await publicBefore.text()).not.toContain(revised);
+  // Prime the actual publication cache through the RSS route before approval.
+  expect(await (await page.request.get('/feed.xml')).text()).not.toContain(revised);
   await page.getByRole("button", { name: "Start final review" }).click();
   await page
     .getByLabel("I checked the original source and the factual claims.")
@@ -239,6 +241,7 @@ test("editor saves a correction privately, requires review, then publishes the s
   await expect(
     page.getByRole("button", { name: "Create an editable revision" }),
   ).toBeVisible();
+  await expect.poll(async () => (await page.request.get('/feed.xml')).text()).toContain(revised);
   await page.goto(`/brief/${starters[0].slug}`);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(revised);
 });

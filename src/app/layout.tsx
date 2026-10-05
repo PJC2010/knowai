@@ -51,6 +51,10 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
+      <head>
+        {/* Keep feed discovery in the initial head, even on pages with streamed metadata. */}
+        <link rel="alternate" type="application/rss+xml" title="knowai — The Brief" href={new URL("/feed.xml", siteUrl).href} />
+      </head>
       <body>
         <ConnectionProvider>
           <a className="skip-link" href="#main">
