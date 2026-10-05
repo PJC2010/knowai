@@ -1,6 +1,7 @@
 import { Readability } from "@mozilla/readability";
 import { parseHTML } from "linkedom";
 import { normalizeSourceUrl, wordCount } from "../brief";
+import { safeImageUrl } from "./images";
 
 export async function boundedFetch(
   url: string,
@@ -65,6 +66,59 @@ export function extractSource(html: string): string {
     );
   return text;
 }
+
+export function extractSourceImage(html: string, articleUrl: string): string | null {
+  const { document } = parseHTML(html);
+  for (const selector of ['meta[property="og:image:secure_url"]','meta[property="og:image"]','meta[name="twitter:image"]','meta[property="twitter:image"]']) {
+    for (const node of document.querySelectorAll(selector)) {
+      const url = safeImageUrl(node.getAttribute("content"), articleUrl);
+      if (url) return url;
+    }
+  }
+  const imageFrom = (value: unknown): string | null => {
+    if (typeof value === "string") return safeImageUrl(value, articleUrl);
+    if (Array.isArray(value)) return value.map(imageFrom).find(Boolean) || null;
+    if (!value || typeof value !== "object") return null;
+    const item = value as Record<string,unknown>;
+    return imageFrom(item.url) || imageFrom(item.contentUrl);
+  };
+  const articleImage = (value: unknown): string | null => {
+    if (Array.isArray(value)) return value.map(articleImage).find(Boolean) || null;
+    if (!value || typeof value !== "object") return null;
+    const item = value as Record<string,unknown>;
+    return (/Article|BlogPosting/.test(String(item['@type'])) ? imageFrom(item.image) : null) || articleImage(item['@graph']);
+  };
+  for (const script of document.querySelectorAll('script[type="application/ld+json"]')) {
+    try { const url = articleImage(JSON.parse(script.textContent || '')); if (url) return url; } catch { /* Continue to article image. */ }
+  }
+  for (const node of document.querySelectorAll('article img, main img')) {
+    const url = safeImageUrl(node.getAttribute('src') || node.getAttribute('data-src'),articleUrl);
+    if (url) return url;
+  }
+  return null;
+}
+
+export function extractFeedImage(item: Record<string,unknown>, articleUrl: string): string | null {
+  for (const key of ['media:content','media:thumbnail','enclosure']) {
+    const values = Array.isArray(item[key]) ? item[key] : [item[key]];
+    for (const value of values) {
+      if (!value || typeof value !== 'object') continue;
+      const node = value as Record<string,unknown>;
+      if (key === 'enclosure' && !String(node['@_type']).startsWith('image/')) continue;
+      if (node['@_type'] && !String(node['@_type']).startsWith('image/')) continue;
+      if (node['@_medium'] && node['@_medium'] !== 'image') continue;
+      const url = safeImageUrl(node['@_url'], articleUrl);
+      if (url) return url;
+    }
+  }
+  const html = item['content:encoded'] || item.description;
+  return typeof html === 'string' ? extractSourceImage(`<article>${html}</article>`,articleUrl) : null;
+}
+
+export async function retrieveSourceImage(input: string) {
+  const url = normalizeSourceUrl(input);
+  return extractSourceImage(await boundedFetch(url, {}, 2_000_000, 3), url);
+}
 export async function retrieveImportMetadata(input: string) {
   const url = normalizeSourceUrl(input);
   const html = await boundedFetch(url, {}, 2_000_000, 3);
@@ -89,12 +143,15 @@ export async function retrieveImportMetadata(input: string) {
   if (!date || !Number.isFinite(date.getTime()) || date.getTime() > Date.now()+300000)
     throw new Error('No trustworthy original publication date was found. Import from a dated publisher feed instead; today’s date will not be invented.');
   const names: Record<string,string> = {'openai.com':'OpenAI','blog.google':'Google','huggingface.co':'Hugging Face','techcrunch.com':'TechCrunch'};
-  return {url,title,source_published_at:date.toISOString(),source_name:names[new URL(url).hostname]};
+  return {url,title,source_published_at:date.toISOString(),source_name:names[new URL(url).hostname],source_image_url:extractSourceImage(html,url)};
 }
 
 export async function retrieveSource(url: string) {
-  return extractSource(
-    await boundedFetch(
+  return (await retrieveSourceArticle(url)).text;
+}
+
+export async function retrieveSourceArticle(url: string) {
+  const html = await boundedFetch(
       normalizeSourceUrl(url),
       {
         headers: { "User-Agent": "knowai/1.0 (editorial source review)" },
@@ -102,6 +159,6 @@ export async function retrieveSource(url: string) {
       },
       2_000_000,
       3,
-    ),
-  );
+    );
+  return {text:extractSource(html), imageUrl:extractSourceImage(html,url)};
 }

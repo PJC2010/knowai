@@ -13,6 +13,7 @@ registerHooks({ resolve(specifier, context, next) {
   return next(specifier, context);
 } });
 const { GET } = await import('../src/app/feed.xml/route');
+const { getPublishedStories } = await import('../src/lib/editorial/published');
 process.env.NEXT_PUBLIC_SITE_URL = 'https://knowai.example/';
 process.env.NEXT_PUBLIC_SUPABASE_URL = 'http://127.0.0.1:59999';
 process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = 'fixture-public';
@@ -28,10 +29,10 @@ const publication = {
 };
 
 test('feed HTTP route reads only public publications without service/model keys, discovery or generation', async t => {
-  const calls: string[] = [];
+  const calls: URL[] = [];
   t.mock.method(globalThis, 'fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input));
-    calls.push(url.pathname);
+    calls.push(url);
     assert.equal(url.origin, 'http://127.0.0.1:59999');
     assert.equal(url.pathname, '/rest/v1/brief_publications');
     assert.equal(init?.method || 'GET', 'GET');
@@ -47,7 +48,23 @@ test('feed HTTP route reads only public publications without service/model keys,
   assert.equal(XMLValidator.validate(xml), true);
   assert.match(xml, /Approved fixture summary\./);
   assert.match(xml, /https:\/\/knowai\.example\/brief\/approved-fixture/);
-  assert.deepEqual(calls, ['/rest/v1/brief_publications']);
+  assert.equal(calls.length, 2);
+  assert.deepEqual(calls.map(url => ({filter:url.searchParams.get('featured_week'),order:url.searchParams.get('order'),limit:url.searchParams.get('limit')})),[
+    {filter:null,order:'published_at.desc',limit:'500'},
+    {filter:'not.is.null',order:'featured_week.desc',limit:'500'},
+  ]);
+});
+
+test('public reader includes an older featured story beyond the recent window and deduplicates overlapping results', async t => {
+  const older = {...publication,id:'older-id',slug:'older-featured',published_at:'2025-01-01T09:00:00Z',edition_date:'2025-01-01',featured_week:'2026-09-28'};
+  t.mock.method(globalThis,'fetch',async(input:RequestInfo|URL,init?:RequestInit)=>{
+    const url = new URL(String(input));
+    assert.equal(url.pathname,'/rest/v1/brief_publications');
+    assert.equal(init?.method || 'GET','GET');
+    assert.equal(new Headers(init?.headers).get('apikey'),'fixture-public');
+    return new Response(JSON.stringify(url.searchParams.has('featured_week') ? [older,publication] : [publication]),{headers:{'Content-Type':'application/json'}});
+  });
+  assert.deepEqual((await getPublishedStories()).map(story=>story.id),['fixture-id','older-id']);
 });
 
 for (const failure of ['database', 'transport', 'invalid-publication'] as const) {
@@ -82,14 +99,14 @@ test('no publications yields valid empty XML; unconfigured database never contac
   const xml = await configured.text();
   assert.equal(XMLValidator.validate(xml), true);
   assert.equal(new XMLParser().parse(xml).rss.channel.item, undefined);
-  assert.equal(calls, 1);
+  assert.equal(calls, 2);
   const previous = process.env.NEXT_PUBLIC_SUPABASE_URL;
   delete process.env.NEXT_PUBLIC_SUPABASE_URL;
   try {
     const unconfigured = await GET();
     assert.equal(unconfigured.status, 200);
     assert.equal(await unconfigured.text(), xml);
-    assert.equal(calls, 1);
+    assert.equal(calls, 2);
   } finally {
     process.env.NEXT_PUBLIC_SUPABASE_URL = previous;
   }

@@ -135,6 +135,37 @@ test("a publication conflict invalidates review without replacing the editor con
   assert.equal(desk.canPublish(session.getSnapshot(), []), false);
 });
 
+test("saving a new image advances the revision and invalidates the earlier source review without altering text", async () => {
+  const session = desk.createDraftSession(content, 4, async () => ({ ok: true, message: "Saved", version: 6 }));
+  await session.beginReview(); session.check("source", true); session.check("tiers", true);
+  assert.equal(desk.canPublish(session.getSnapshot(), []), true);
+  assert.equal(session.acceptSavedVersion(5), true);
+  assert.equal(session.getSnapshot().version, 5);
+  assert.deepEqual(session.getSnapshot().content, content);
+  assert.equal(desk.canPublish(session.getSnapshot(), []), false);
+  session.edit({ ...content, oneLiner: "Unsaved text" });
+  assert.equal(session.acceptSavedVersion(6), false);
+  assert.equal(session.getSnapshot().version, 5);
+  assert.equal(session.getSnapshot().content.oneLiner, "Unsaved text");
+});
+
+test("an image save cannot adopt a stale version or bypass a conflict", async () => {
+  const session = desk.createDraftSession(content, 4, async () => ({ ok: true, message: "Saved", version: 5 }));
+  for (const version of [4, 3, 4.5, NaN]) assert.equal(session.acceptSavedVersion(version), false);
+  session.serverConflict({ ok: false, code: "conflict", message: "Changed elsewhere" });
+  assert.equal(session.acceptSavedVersion(5), false);
+  assert.equal(session.getSnapshot().version, 4);
+});
+
+test("changing a local image selection resets publication checks before it is saved", async () => {
+  const session = desk.createDraftSession(content, 4, async () => ({ ok: true, message: "Saved", version: 5 }));
+  await session.beginReview(); session.check("source", true); session.check("tiers", true);
+  session.invalidateReview();
+  assert.equal(session.getSnapshot().sourceChecked, false);
+  assert.equal(session.getSnapshot().tiersChecked, false);
+  assert.equal(desk.canPublish(session.getSnapshot(), []), false);
+});
+
 test("accepting a field suggestion changes only that field and refuses to overwrite newer typing", () => {
   assert.equal(typeof desk.acceptSuggestion, "function");
   const suggestion = { field: "oneLiner" as const, before: content.oneLiner, value: "A cleaner line" };

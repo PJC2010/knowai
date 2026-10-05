@@ -6,6 +6,7 @@ export type DeskSource = {
   source_published_at: string; category: NewsCategory; publisher_id: string | null;
   triage: "inbox" | "selected" | "saved" | "dismissed";
   job_state: string | null; revision_id: string | null; excerpt?: string | null;
+  source_image_url?: string | null; featured_week?: string | null;
 };
 export type DeskPublisher = {
   id: string; name: string; feed_url: string; enabled: boolean;
@@ -35,6 +36,9 @@ export type DeskMutation =
   | { intent: "daily-cap"; limit: number; confirmCharge: boolean }
   | { intent: "import-url"; url: string }
   | { intent: "save"; id: string; version: number; content: Tiers }
+  | { intent: "image"; id: string; version: number; imageSource: "source" | "upload" | "none"; imageAlt: string; imageUrl?: string | null }
+  | { intent: "refresh-image"; id: string; version: number }
+  | { intent: "feature"; id: string; week: string | null }
   | { intent: "publish"; id: string; version: number; sourceChecked: boolean; tiersChecked: boolean }
   | { intent: "reject"; id: string; version: number }
   | { intent: "fork"; id: string }
@@ -43,5 +47,6 @@ export type DeskMutation =
 export type DeskResult = {
   ok: boolean; message: string; code?: "conflict" | "invalid" | "failed";
   version?: number; revisionId?: string; slug?: string; attemptsToday?: number; dailyAttemptLimit?: number;
+  imageUrl?: string | null; imageAlt?: string | null; imageSource?: "source" | "upload" | "none"; sourceImageUrl?: string | null; featuredWeek?: string | null;
   suggestion?: { field: "oneLiner" | "shortVersion" | "wholePicture" | "whyItMatters"; value: string | string[]; cost: number | null };
 };

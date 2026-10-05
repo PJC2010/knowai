@@ -3,10 +3,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { DeskData, DeskQuery, DeskMutation, DeskResult } from "./desk-types";
 import { requireEditor, serviceDatabase } from "./supabase";
 import { discoverStories, runEditorialBatch } from "./pipeline";
-import { boundedFetch, retrieveImportMetadata } from "./source";
+import { boundedFetch, retrieveImportMetadata, retrieveSourceImage } from "./source";
 import { createHash, randomUUID } from "node:crypto";
 import { categorize } from "../news";
 import { parseSuggestion, suggestionRequest } from "./suggestions";
+import { IMAGE_BUCKET, validFeaturedWeek, validateImageUpload } from "./images";
 
 export async function loadDesk(query: DeskQuery): Promise<DeskData> {
   const {db} = await requireEditor();
@@ -181,8 +182,69 @@ async function performDeskMutation(input: DeskMutation, {db,user}: Session): Pro
       const version = await rpc<number>(db,'save_brief_desk',{p_id:input.id,p_version:input.version,p_content:input.content});
       return {ok:true,message:'Draft saved. It is still unpublished.',version};
     }
+    if (input.intent === 'image') {
+      if (!['source','upload','none'].includes(input.imageSource) || typeof input.imageAlt !== 'string' || input.imageAlt.length > 500) throw new DeskError('Choose a supported image and description of up to 500 characters.');
+      if (input.imageUrl !== undefined && input.imageUrl !== null && (typeof input.imageUrl !== 'string' || input.imageUrl.length > 2048)) throw new DeskError('Choose a valid story image.');
+      const image = await rpc<DeskResult>(db,'set_brief_revision_image',{p_id:input.id,p_version:input.version,p_source:input.imageSource,p_url:input.imageSource === 'source' && input.imageUrl !== undefined ? input.imageUrl || '' : null,p_alt:input.imageAlt.trim()});
+      return {...image,ok:true,message:'Story image saved. Publish this revision to make it live.'};
+    }
+    if (input.intent === 'refresh-image') {
+      const {active} = await rpc<DeskData>(db,'load_brief_desk',{p_query:{id:input.id}});
+      if (!active || active.version !== input.version || active.state !== 'needs_review') throw new DeskError('Draft changed or is no longer editable. Reload before trying again.','conflict');
+      let imageUrl;
+      try { imageUrl = await retrieveSourceImage(active.brief_sources.url); }
+      catch { throw new DeskError('The article image could not be retrieved. Try again or upload an image.'); }
+      const service = serviceDatabase();
+      const {error} = await service.from('brief_sources').update({source_image_url:imageUrl}).eq('id',active.story_id);
+      if (error) throw new DeskError('The source image could not be saved.','failed');
+      const image = await rpc<DeskResult>(db,'set_brief_revision_image',{p_id:input.id,p_version:input.version,p_source:active.image_source || 'source',p_url:active.image_source === 'upload' ? null : imageUrl || '',p_alt:active.image_alt || ''});
+      return {...image,ok:true,message:imageUrl?'Article image refreshed. Publish this revision to make it live.':'No article image was found. You can upload an image.'};
+    }
+    if (input.intent === 'feature') {
+      if (!validFeaturedWeek(input.week)) throw new DeskError('Choose the Monday that starts the featured week.');
+      const result = await rpc<DeskResult>(db,'set_brief_feature',{p_id:input.id,p_week:input.week});
+      return {...result,ok:true,message:input.week?'Featured article of the week updated.':'Weekly feature removed.'};
+    }
     throw new DeskError('Unknown editorial action.');
   } catch (error) {
     return {ok:false,code:error instanceof DeskError ? error.code : 'failed',message:error instanceof DeskError ? error.message : 'The editorial action failed. Your local text is retained; try again.'};
+  }
+}
+
+// File data is accepted only by the authenticated server action. The upload is
+// registered server-side before an editor RPC can attach it to this revision.
+export async function executeDeskImageUpload(form: FormData, {db,user}: Session): Promise<DeskResult> {
+  let uploaded: {path:string;url:string} | null = null;
+  let service: SupabaseClient | undefined;
+  let attachmentAttempted = false;
+  try {
+    const id = form.get('id'), version = Number(form.get('version')), alt = form.get('imageAlt'), file = form.get('image');
+    requireId(id);
+    if (!Number.isSafeInteger(version) || version < 1) throw new DeskError('Reload this draft before uploading an image.');
+    if (typeof alt !== 'string' || alt.length > 500 || !(file instanceof File)) throw new DeskError('Choose an image and description of up to 500 characters.');
+    let validated;
+    try { validated = await validateImageUpload(file); } catch (error) { throw new DeskError((error as Error).message); }
+    const {active} = await rpc<DeskData>(db,'load_brief_desk',{p_query:{id}});
+    if (!active || active.id !== id || active.version !== version || active.state !== 'needs_review') throw new DeskError('Draft changed or is no longer editable. Reload before uploading.','conflict');
+    service = serviceDatabase();
+    const path = `${user.id}/${id}/${randomUUID()}.${validated.extension}`;
+    const bucket = service.storage.from(IMAGE_BUCKET);
+    const upload = await bucket.upload(path,validated.bytes,{contentType:validated.contentType,upsert:false,cacheControl:'31536000'});
+    if (upload.error) throw new DeskError('The image upload failed. Check that the story images migration is installed and try again.','failed');
+    const url = bucket.getPublicUrl(path).data.publicUrl;
+    uploaded = {path,url};
+    const record = await service.from('brief_image_uploads').insert({revision_id:id,actor:user.id,path,url});
+    if (record.error) throw new DeskError('The image upload could not be registered. Try again.','failed');
+    attachmentAttempted = true;
+    const image = await rpc<DeskResult>(db,'set_brief_revision_image',{p_id:id,p_version:version,p_source:'upload',p_url:url,p_alt:alt.trim()});
+    return {...image,ok:true,message:'Image uploaded and saved. Publish this revision to make it live.'};
+  } catch (error) {
+    if (uploaded && service && (!attachmentAttempted || (error instanceof DeskError && error.code !== 'failed'))) {
+      // Clean up rejected attachments. A transport failure after submission may
+      // have committed, so retain those bytes for the saved revision to resolve.
+      await service.from('brief_image_uploads').delete().eq('url',uploaded.url);
+      await service.storage.from(IMAGE_BUCKET).remove([uploaded.path]);
+    }
+    return {ok:false,code:error instanceof DeskError ? error.code : 'failed',message:error instanceof DeskError ? error.message : 'The image upload failed. Try again.'};
   }
 }
