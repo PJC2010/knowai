@@ -24,6 +24,9 @@ export type BriefStory = {
   published_at: string;
   updated_at: string;
   edition_date: string;
+  image_url?: string | null;
+  image_alt?: string | null;
+  featured_week?: string | null;
 };
 export type Revision = {
   id: string;
@@ -35,6 +38,9 @@ export type Revision = {
   version: number;
   created_at: string;
   reviewed_at: string | null;
+  image_url?: string | null;
+  image_alt?: string | null;
+  image_source?: "source" | "upload" | "none";
 };
 export const wordCount = (text: string) =>
   text.trim().split(/\s+/u).filter(Boolean).length;

@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { uploadDeskImage } from "@/app/editor/desk-actions";
 import { BriefFeed } from "@/components/brief-feed";
 import { validateTiers, type BriefStory, type Tiers } from "@/lib/brief";
 import type { DeskData, DeskHistory, DeskMutation, DeskResult, DeskRevision } from "@/lib/editorial/desk-types";
@@ -7,6 +8,8 @@ import { createDraftSession, canPublish, quoteMatches, acceptSuggestion, content
 import { WritePanel, type Tier, type WritingField, fieldLabels } from "./panels";
 import { DeskDialog, ChargeNotice, LimitReachedNotice } from "./dialog";
 import { useNavigationGuard } from "./navigation-guard";
+import { StoryImageSelector, type ImageRequest, type StoryImageSelection } from "./story-image-selector";
+import { WeeklyFeature } from "./weekly-feature";
 
 export type DeskAction = (input: DeskMutation) => Promise<DeskResult>;
 export function ReviewWorkspace({ revision, history, revisions, attempts, limit, mutate, onBack, onOpen, refreshHistory, historyLoading }: {
@@ -41,12 +44,19 @@ export function ReviewWorkspace({ revision, history, revisions, attempts, limit,
   const [dailyLimit, setDailyLimit] = useState(limit);
   useEffect(() => { setAttemptsUsed(attempts); setDailyLimit(limit); }, [attempts, limit]);
   const source = revision.brief_sources;
+  const [initialImage] = useState<StoryImageSelection>(() => ({ url: revision.image_url || null, alt: revision.image_alt || "", source: revision.image_source || (revision.image_url ? "source" : "none") }));
+  const [image, setImage] = useState(initialImage);
+  const [imageDirty, setImageDirty] = useState(false);
+  const imageChanged = useCallback((selection: StoryImageSelection, dirty: boolean) => {
+    setImage(selection); setImageDirty(dirty);
+    if (dirty) session.invalidateReview();
+  }, [session]);
   const editable = hydrated && decision === "needs_review";
   const errors = validateTiers(state.content, revision.source_text);
-  const guard = useNavigationGuard(state.dirty || state.saving || busy, state.saving || busy, () => session.pauseAutosave());
+  const guard = useNavigationGuard(state.dirty || imageDirty || state.saving || busy, state.saving || busy, () => session.pauseAutosave());
   const matches = quoteMatches(revision.source_text, quote);
   const sourceText = useRef<HTMLDivElement>(null);
-  const ready = editable && !busy && !suggestion && canPublish(state, errors);
+  const ready = editable && !busy && !imageDirty && !suggestion && canPublish(state, errors);
   const next = revisions.find(r => r.id !== revision.id && r.state === "needs_review");
 
   useEffect(() => {
@@ -78,6 +88,30 @@ export function ReviewWorkspace({ revision, history, revisions, attempts, limit,
       const result = { ok: false, message: "The request could not finish. Your text is still here. Please retry.", code: "failed" as const };
       setMessage(result.message); return result;
     } finally { busyRef.current = false; setBusy(false); }
+  }
+  async function changeImage(request: ImageRequest | "refresh"): Promise<DeskResult> {
+    if (busyRef.current || !editable) return { ok: false, message: "Wait for the current request." };
+    busyRef.current = true; setBusy(true); setMessage("");
+    try {
+      if (!await session.save()) return { ok: false, message: "Save your text changes before changing the image." };
+      const version = session.getSnapshot().version;
+      let result: DeskResult;
+      if (request === "refresh") result = await mutate({ intent: "refresh-image", id: revision.id, version });
+      else if (request.file) {
+        const form = new FormData();
+        form.set("id", revision.id); form.set("version", String(version));
+        form.set("imageAlt", request.alt); form.set("image", request.file);
+        result = await uploadDeskImage(form);
+      } else result = await mutate({ intent: "image", id: revision.id, version, imageSource: request.source, imageUrl: request.url, imageAlt: request.alt });
+      if (result.code === "conflict") session.serverConflict(result);
+      if (result.ok && (!result.version || !session.acceptSavedVersion(result.version))) {
+        const error: DeskResult = { ok: false, code: "conflict", message: "The saved image version could not be confirmed. Reload the latest draft before publishing." };
+        session.serverConflict(error); return error;
+      }
+      setMessage(result.message);
+      return result;
+    } catch { return { ok: false, code: "failed", message: "The image could not be saved. Your selection is still here; try again." }; }
+    finally { busyRef.current = false; setBusy(false); }
   }
   function showSource(value = "") { setQuote(value); setMatchIndex(0); setSourceOpen(true); }
   function edit(content: Tiers) { session.edit(content); setMessage(""); }
@@ -117,17 +151,18 @@ export function ReviewWorkspace({ revision, history, revisions, attempts, limit,
     else setTab("evidence");
     window.setTimeout(() => document.querySelector<HTMLElement>(error.includes("Why it matters") ? "#field-whyItMatters" : ".desk-work-panel textarea")?.focus(), 0);
   }
-  const preview: BriefStory = { id: revision.story_id, slug: source.slug, source_url: source.url, source_name: source.source_name, source_published_at: source.source_published_at, category: source.category, one_liner: state.content.oneLiner, short_version: state.content.shortVersion, whole_picture: state.content.wholePicture, why_it_matters: state.content.whyItMatters, published_at: revision.created_at, updated_at: revision.created_at, edition_date: revision.created_at.slice(0, 10) };
+  const preview: BriefStory = { id: revision.story_id, slug: source.slug, source_url: source.url, source_name: source.source_name, source_published_at: source.source_published_at, category: source.category, one_liner: state.content.oneLiner, short_version: state.content.shortVersion, whole_picture: state.content.wholePicture, why_it_matters: state.content.whyItMatters, published_at: revision.created_at, updated_at: revision.created_at, edition_date: revision.created_at.slice(0, 10), image_url: image.url, image_alt: image.alt };
   const text = (value: string | string[]) => Array.isArray(value) ? value.join("\n\n") : value;
 
   return <section className="desk-workspace" aria-label="Story workspace">
     <LimitReachedNotice attempts={attemptsUsed} limit={dailyLimit} /><div className="desk-work-top"><button className="text-button" onClick={() => { if (guard.canLeave()) { guard.allow(); onBack(); } }}>← Back to queue</button><span className="desk-state">{decision.replaceAll("_", " ")} · v{state.version}</span></div>
     <header className="desk-work-heading"><div className="desk-meta"><span>{source.source_name}</span><time dateTime={source.source_published_at}>{source.source_published_at.slice(0, 10)}</time><span>{source.category}</span></div><h1>{source.title}</h1><div className="desk-card-actions"><button className="button secondary" onClick={() => showSource()}>Original source ↗</button><button className="text-button" disabled={busy || state.saving} onClick={async () => { if (await session.save()) { setHistoryOpen(true); refreshHistory(); } }}>Revision history</button></div></header>
     {decision !== "needs_review" && <div className="desk-outcome" role="status"><h2>{decision === "published" ? "This story is published." : "This draft was rejected."}</h2><p>{decision === "published" ? "The public story stays unchanged until another revision is explicitly approved." : "Existing public content has not changed."}</p><div className="desk-card-actions">{slug && <a className="button secondary" href={`/brief/${slug}`} target="_blank" rel="noreferrer">View published story ↗</a>}<button className="button secondary" disabled={busy} onClick={async () => { const result = await run({ intent: "fork", id: revision.id }); if (result.ok && result.revisionId) { guard.allow(); onOpen(result.revisionId); } }}>Create an editable revision</button>{next ? <button className="button primary" onClick={() => openRevision(next.id)}>Next draft →</button> : <button className="button primary" onClick={onBack}>Back to queue →</button>}</div></div>}
+    {decision === "published" && <WeeklyFeature initialWeek={source.featured_week || null} disabled={!hydrated || busy} onFeature={week => run({ intent: "feature", id: revision.id, week })} />}
     <div className="desk-work-layout"><div className="desk-work-main">
       <div className="desk-work-tabs" role="tablist" aria-label="Workspace view">{(["write", "evidence", "preview"] as const).map((value, i) => <button id={`tab-${value}`} key={value} role="tab" aria-selected={tab === value} aria-controls={`panel-${value}`} tabIndex={tab === value ? 0 : -1} onClick={() => setTab(value)} onKeyDown={event => { if (["ArrowRight", "ArrowLeft", "Home", "End"].includes(event.key)) { event.preventDefault(); const tabs = ["write", "evidence", "preview"] as const; const index = event.key === "Home" ? 0 : event.key === "End" ? 2 : (i + (event.key === "ArrowRight" ? 1 : 2)) % 3; setTab(tabs[index]); document.getElementById(`tab-${tabs[index]}`)?.focus(); } }}>{["Write", "Evidence", "Preview"][i]}{value === "evidence" && <span>{state.content.evidence.length}</span>}</button>)}</div>
       <div className="desk-work-panel" role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
-        {tab === "write" && <WritePanel content={state.content} tier={tier} readOnly={!editable || busy} onTier={setTier} onEdit={edit} onSuggest={field => { setCharge(false); setSuggestField(field); }} />}
+        <div hidden={tab !== "write"}><WritePanel content={state.content} tier={tier} readOnly={!editable || busy} onTier={setTier} onEdit={edit} onSuggest={field => { setCharge(false); setSuggestField(field); }} /><StoryImageSelector initial={initialImage} sourceUrl={source.source_image_url || null} disabled={!editable || busy || !!state.error} onChange={imageChanged} onSave={changeImage} onRefresh={() => changeImage("refresh")} /></div>
         {tab === "evidence" && <div className="desk-evidence"><h2>Trace every claim.</h2><p className="desk-hint">An exact excerpt match is not a fact check. Read the original and verify each claim in context.</p>{state.content.evidence.map((item, index) => {
           const found = quoteMatches(revision.source_text, item.quote);
           return <article className="desk-evidence-card" key={index}><span className="eyebrow">Claim {index + 1}</span><label>Claim<textarea value={item.claim} readOnly={!editable || busy} onChange={e => edit({ ...state.content, evidence: state.content.evidence.map((v, i) => i === index ? { ...v, claim: e.target.value } : v) })} /></label><label>Exact source excerpt<textarea rows={4} value={item.quote} readOnly={!editable || busy} onChange={e => edit({ ...state.content, evidence: state.content.evidence.map((v, i) => i === index ? { ...v, quote: e.target.value } : v) })} /></label><div className="desk-card-actions"><button className="button secondary" onClick={() => showSource(item.quote)}>{found.length ? `Show excerpt · ${found.length} exact ${found.length === 1 ? "match" : "matches"}` : "Excerpt not found · inspect source"}</button>{editable && <button className="text-button" disabled={busy} onClick={() => edit({ ...state.content, evidence: state.content.evidence.filter((_, i) => i !== index) })}>Remove claim {index + 1}</button>}</div></article>;
@@ -136,14 +171,15 @@ export function ReviewWorkspace({ revision, history, revisions, attempts, limit,
       </div>
       {suggestion && <section className="desk-suggestion" aria-label="AI suggestion"><h2>Suggested {fieldLabels[suggestion.field].toLowerCase()}</h2><p className="desk-hint">Your original is unchanged until you accept. Review the source again after accepting.{suggestion.cost !== null ? ` Reported cost: $${suggestion.cost.toFixed(6)}.` : " Cost not reported yet."}</p><div className="desk-diff"><div><h3>Current</h3><del>{text(suggestion.before)}</del></div><div><h3>Suggested</h3><ins>{text(suggestion.value)}</ins></div></div><div className="desk-card-actions"><button className="button primary" disabled={!editable || busy || text(state.content[suggestion.field]) !== text(suggestion.before)} onClick={() => { const accepted = acceptSuggestion(session.getSnapshot().content, suggestion); if (accepted) { edit(accepted); setSuggestion(null); } }}>Accept suggestion</button><button className="button secondary" onClick={() => setSuggestion(null)}>Discard suggestion</button></div>{text(state.content[suggestion.field]) !== text(suggestion.before) && <p className="desk-invalid">This field changed since the suggestion. Discard it and request another; your newer text is safe.</p>}</section>}
     </div><aside className="desk-review" aria-label="Publication checklist"><h2>Before it goes live</h2><p className="desk-hint">Save, pause, then check the version you will publish.</p>
-      {editable && <button className="button secondary" disabled={busy || state.saving || !!suggestion} onClick={async () => { if (await session.beginReview()) setMessage("Final review started. Autosave is paused; any edit resets your checks."); }}>Start final review</button>}
+      {editable && <button className="button secondary" disabled={busy || state.saving || imageDirty || !!suggestion} onClick={async () => { if (await session.beginReview()) setMessage("Final review started. Autosave is paused; any edit resets your checks."); }}>Start final review</button>}
+      {imageDirty && <p className="desk-hint">Save your image selection in Write before starting final review.</p>}
       <ul className="desk-checklist"><li><button className="text-button" onClick={() => showSource()}>1. Check the original source ↗</button></li><li><button className="text-button" onClick={() => setTab("preview")}>2. Read all three versions →</button></li><li>{errors.length ? `${errors.length} content ${errors.length === 1 ? "issue" : "issues"} to resolve` : "✓ Length and excerpt rules satisfied"}</li><li>{state.dirty || state.saving ? "Save changes before review" : `✓ Saved version ${state.version}`}</li></ul>
       {errors.length > 0 && <ul className="desk-issues">{errors.map(error => <li key={error}><button onClick={() => issue(error)}>{error} →</button></li>)}</ul>}
-      {editable && <><label className="editor-check"><input type="checkbox" checked={state.sourceChecked} disabled={!state.paused || state.dirty || state.saving || busy || !!state.error} onChange={e => session.check("source", e.target.checked)} />I checked the original source and the factual claims.</label><label className="editor-check"><input type="checkbox" checked={state.tiersChecked} disabled={!state.paused || state.dirty || state.saving || busy || !!state.error} onChange={e => session.check("tiers", e.target.checked)} />I reviewed all three standalone versions, including the one-liner’s tone.</label><p className="desk-hint">{state.paused ? `Reviewing saved version ${state.version}. Editing resets both checks.` : "Start final review to enable the checks. Autosave is active while writing."}</p><button className="text-button" disabled={busy || state.saving} onClick={() => setConfirmation("reject")}>Reject draft</button><button className="text-button" disabled={busy || state.saving} onClick={() => { setCharge(false); setConfirmation("regenerate"); }}>Generate a new draft</button></>}
+      {editable && <><label className="editor-check"><input type="checkbox" checked={state.sourceChecked} disabled={!state.paused || state.dirty || state.saving || busy || !!state.error} onChange={e => session.check("source", e.target.checked)} />I checked the original source and the factual claims.</label><label className="editor-check"><input type="checkbox" checked={state.tiersChecked} disabled={!state.paused || state.dirty || state.saving || busy || !!state.error} onChange={e => session.check("tiers", e.target.checked)} />I reviewed all three standalone versions, including the one-liner’s tone.</label><p className="desk-hint">{state.paused ? `Reviewing saved version ${state.version}. Editing resets both checks.` : "Start final review to enable the checks. Autosave is active while writing."}</p><button className="text-button" disabled={busy || state.saving || imageDirty} onClick={() => setConfirmation("reject")}>Reject draft</button><button className="text-button" disabled={busy || state.saving || imageDirty} onClick={() => { setCharge(false); setConfirmation("regenerate"); }}>Generate a new draft</button></>}
     </aside></div>
     {state.error && <div className="desk-save-error" role="alert"><strong>{state.error.code === "conflict" ? "A newer version was saved elsewhere." : "Draft not saved."}</strong><p>{state.error.message}</p><p>Your local text is preserved here. Copy any changes you want to keep before reloading.</p><div className="desk-card-actions"><button className="button secondary" disabled={state.saving} onClick={() => void session.save()}>Retry save</button><button className="text-button" onClick={() => { if (window.confirm("Reload the latest saved draft? This discards your local unsaved text.")) { guard.allow(); window.location.reload(); } }}>Reload latest</button></div></div>}
     <p className="desk-feedback" role="status">{busy ? "Working… please keep this page open." : message}</p>
-    {editable && <div className="desk-work-actions"><div role="status" aria-live="polite"><strong>{state.saving ? "Saving…" : state.error ? "Not saved" : state.dirty ? "Unsaved changes" : state.paused ? "Saved · review paused autosave" : "All changes saved"}</strong><small>Version {state.version} · private draft</small></div><button className="button secondary" disabled={busy || state.saving || !state.dirty} onClick={() => void session.save()}>Save draft</button><button className="button primary" disabled={!ready} onClick={() => setConfirmation("publish")}>Approve and publish</button></div>}
+    {editable && <div className="desk-work-actions"><div role="status" aria-live="polite"><strong>{state.saving ? "Saving…" : state.error ? "Not saved" : imageDirty ? "Unsaved image selection" : state.dirty ? "Unsaved changes" : state.paused ? "Saved · review paused autosave" : "All changes saved"}</strong><small>Version {state.version} · private draft</small></div><button className="button secondary" disabled={busy || state.saving || !state.dirty} onClick={() => void session.save()}>Save draft</button><button className="button primary" disabled={!ready} onClick={() => setConfirmation("publish")}>Approve and publish</button></div>}
     <DeskDialog open={sourceOpen} onClose={() => setSourceOpen(false)} title="Original source" description={`${source.source_name} · Published ${source.source_published_at.slice(0, 10)}. This capture belongs to this revision; check the original for updates.`} reader>
       <a className="button secondary" href={source.url} target="_blank" rel="noreferrer">Open {source.source_name} original ↗</a>
       {quote && <div className="desk-source-match"><p>{matches.length ? `${matches.length} exact ${matches.length === 1 ? "match" : "matches"}. Text matching does not verify factual accuracy.` : "No exact match in this capture. Check punctuation and context; do not treat this as verified evidence."}</p>{matches.length > 1 && <div className="desk-card-actions"><button className="button secondary" onClick={() => setMatchIndex((matchIndex + matches.length - 1) % matches.length)}>Previous match</button><span>{matchIndex + 1} / {matches.length}</span><button className="button secondary" onClick={() => setMatchIndex((matchIndex + 1) % matches.length)}>Next match</button></div>}</div>}

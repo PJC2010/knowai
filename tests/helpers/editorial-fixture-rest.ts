@@ -44,6 +44,7 @@ export async function fixtureRest(
       const dot=raw.indexOf('.'); const op=raw.slice(0,dot), value=raw.slice(dot+1);
       if(op==='in') { const items=value.replace(/^\(|\)$/g,'').split(','); return `${col} in (${items.map(v=>{values.push(v); return '$'+values.length;}).join(',')})`; }
       if(op==='is'&&['null','true','false'].includes(value))return `${col} is ${value}`;
+      if(op==='not'&&value==='is.null')return `${col} is not null`;
       const ops:Record<string,string>={eq:'=',neq:'<>',gt:'>',gte:'>=',lt:'<',lte:'<=',like:'like',ilike:'ilike'};
       if(!ops[op]) throw new Error(`Unsupported fixture filter: ${op}`);
       values.push(value);return `${col} ${ops[op]} $${values.length}`;
@@ -61,7 +62,12 @@ export async function fixtureRest(
     const order=(url.searchParams.get('order')||'').split(',').filter(Boolean).map(spec=>{const [col,direction]=spec.split('.');return `r.${identifier(col)} ${direction==='desc'?'desc':'asc'}`;});
     const offset=Math.max(0,Number(url.searchParams.get('offset'))||0);
     const limit=Math.max(1,Math.min(10000,Number(url.searchParams.get('limit'))||1000));
-    const rows=(await tx.query(`select ${projection} ${from}${order.length?' order by '+order.join(','):''} limit ${limit} offset ${offset}`,values)).rows;
+    const result=await tx.query<Record<string,unknown>>(`select ${projection} ${from}${order.length?' order by '+order.join(','):''} limit ${limit} offset ${offset}`,values);
+    const rows=result.rows;
+    // PGlite decodes PostgreSQL DATE as a Date object; PostgREST exposes a
+    // YYYY-MM-DD string. Preserve that API contract without changing timestamps.
+    for(const {name,dataTypeID} of result.fields) if(dataTypeID===1082)
+      for(const row of rows) if(row[name] instanceof Date) row[name]=(row[name] as Date).toISOString().slice(0,10);
     return {body:headers.accept?.includes('vnd.pgrst.object')?rows[0]??null:rows,total};
   });
 }

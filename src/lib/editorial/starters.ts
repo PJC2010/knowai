@@ -2,7 +2,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import starters from "@/data/editorial-starters.json";
 import { serviceDatabase } from "./supabase";
-import { retrieveSource } from "./source";
+import { retrieveSourceArticle } from "./source";
 import { validateTiers } from "../brief";
 
 /** These AI-assisted starter texts are never public until an editor approves them. */
@@ -42,11 +42,16 @@ export async function importStarterDrafts() {
     }
     const jobId = job.data[0].id;
     try {
-      const text = await retrieveSource(source.url);
+      const article = await retrieveSourceArticle(source.url);
+      const text = article.text;
       if (validateTiers(content, text).length)
         throw new Error(
           "Starter evidence no longer matches the source; regenerate and review.",
         );
+      if (article.imageUrl) {
+        const image = await db.from('brief_sources').update({source_image_url:article.imageUrl}).eq('id',sourceRow.data.id);
+        if (image.error) throw new Error('Could not save the starter image.');
+      }
       const revision = await db
         .from("brief_revisions")
         .insert({
@@ -55,6 +60,8 @@ export async function importStarterDrafts() {
           content,
           source_text: text,
           source_hash: createHash("sha256").update(text).digest("hex"),
+          image_url: article.imageUrl,
+          image_source: 'source',
         });
       if (revision.error) throw new Error("Could not save starter revision.");
       const completed = await db

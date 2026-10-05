@@ -2,7 +2,7 @@ import "server-only";
 import { createHash, randomUUID } from "node:crypto";
 import { XMLParser } from "fast-xml-parser";
 import { serviceDatabase } from "./supabase";
-import { boundedFetch, retrieveSource } from "./source";
+import { boundedFetch, retrieveSourceArticle, extractFeedImage } from "./source";
 import { generationRequest, parseGeneratedTiers } from "./generation";
 import { normalizeSourceUrl } from "../brief";
 import { categorize, plainText } from "../news";
@@ -32,7 +32,7 @@ export async function discoverStories() {
         1_500_000,
         3,
       );
-      const xml = new XMLParser({ processEntities: false }).parse(raw);
+      const xml = new XMLParser({ processEntities: false, ignoreAttributes: false }).parse(raw);
       const entries = xml.rss?.channel?.item;
       if (!xml.rss?.channel) throw new Error("Invalid feed");
       const items = Array.isArray(entries) ? entries : entries ? [entries] : [];
@@ -75,6 +75,7 @@ export async function discoverStories() {
               source_published_at: date.toISOString(),
               category: categorize(title),
               publisher_id: publisherId,
+              source_image_url: extractFeedImage(item, canonical),
             },
             { onConflict: "url", ignoreDuplicates: true },
           )
@@ -139,7 +140,10 @@ export async function runEditorialBatch(jobIds: string[] | null = []) {
           .single();
         check(sourceResult.error);
         const source = sourceResult.data!;
-        const text = await retrieveSource(source.url);
+        const article = await retrieveSourceArticle(source.url);
+        const text = article.text;
+        const imageUrl = article.imageUrl || source.source_image_url || null;
+        if (article.imageUrl) check((await db.from("brief_sources").update({source_image_url:article.imageUrl}).eq("id",source.id)).error);
         check(
           (await db.from("brief_jobs").update({ model }).eq("id", job.id))
             .error,
@@ -195,6 +199,8 @@ export async function runEditorialBatch(jobIds: string[] | null = []) {
                 content,
                 source_text: text,
                 source_hash: hash(text),
+                image_url: imageUrl,
+                image_source: "source",
               })
           ).error,
         );

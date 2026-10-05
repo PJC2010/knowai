@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { getPublishedStory } from "@/lib/editorial/published";
 import { dateLabel } from "@/lib/format";
 import { siteUrl } from "@/lib/site-url";
+import { StoryImage } from "@/components/story-image";
 
 export const revalidate = 300;
 export async function generateMetadata({
@@ -25,15 +26,15 @@ export async function generateMetadata({
       url: `/brief/${story.slug}`,
       publishedTime: story.published_at,
       modifiedTime: story.updated_at,
-      images: [
-        { url: "/images/editorial.png", alt: "knowai editorial illustration" },
-      ],
+      images: story.image_url
+        ? [{ url: story.image_url, alt: story.image_alt || "" }]
+        : [],
     },
     twitter: {
-      card: "summary_large_image",
+      card: story.image_url ? "summary_large_image" : "summary",
       title: story.one_liner,
       description: story.short_version,
-      images: ["/images/editorial.png"],
+      images: story.image_url ? [story.image_url] : [],
     },
   };
 }
@@ -56,6 +57,7 @@ export default async function StoryPage({
     publisher: { "@type": "Organization", name: "knowai" },
     mainEntityOfPage: `${siteUrl()}/brief/${story.slug}`,
     citation: story.source_url,
+    ...(story.image_url ? { image: story.image_url } : {}),
   };
   return (
     <article className="page-container story-page">
@@ -86,6 +88,12 @@ export default async function StoryPage({
           )}
         </p>
       </header>
+      <StoryImage
+        src={story.image_url}
+        alt={story.image_alt}
+        className="story-page-image"
+        priority
+      />
       <nav className="story-depth-links" aria-label="Jump to reading depth">
         <a href="#one-liner">The one-liner</a>
         <a href="#short">The short version</a>

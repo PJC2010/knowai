@@ -151,6 +151,74 @@
   line-height: 2rem;
   font-weight: 500;
 }
+.story-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  background: var(--canvas);
+}
+.brief-card-layout {
+  display: grid;
+  align-items: start;
+  gap: 1.5rem;
+}
+.brief-card-layout:has(> .brief-card-image) {
+  grid-template-columns: minmax(10rem, 1fr) minmax(0, 3fr);
+}
+.brief-card-copy {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.brief-card-image {
+  border-radius: 0.5rem;
+}
+.brief-headline svg {
+  flex-shrink: 0;
+}
+.brief-featured-section {
+  margin: 0.5rem 0 2rem;
+}
+.brief-featured-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1.5rem;
+  margin-bottom: 1rem;
+}
+.brief-featured-heading h2 {
+  font-size: 1.125rem;
+  line-height: 1.5;
+  font-weight: 500;
+  color: var(--accent);
+}
+.brief-featured-heading > span {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.brief-featured {
+  border-color: var(--line);
+}
+.brief-featured .brief-card-layout:has(> .brief-card-image) {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: 2rem;
+}
+.brief-featured h3 {
+  font-size: 2rem;
+  line-height: 1.25;
+  text-wrap: balance;
+}
+.brief-card[data-depth="quick"] .brief-card-layout:has(> .brief-card-image) {
+  grid-template-columns: 6.5rem minmax(0, 1fr);
+  align-items: center;
+  gap: 1rem;
+}
+.brief-card.brief-featured[data-depth="quick"] h3 {
+  font-size: 1.5rem;
+  line-height: 1.4;
+}
 .brief-short,
 .brief-full {
   max-width: 65ch;
@@ -317,6 +385,30 @@ kbd {
 .story-page .story-dates {
   font-size: 0.875rem;
   line-height: 1.25rem;
+}
+.story-page-image {
+  margin-bottom: 2rem;
+  border-radius: 0.75rem;
+}
+@media (max-width: 47.999rem) {
+  .brief-card-layout:has(> .brief-card-image),
+  .brief-featured .brief-card-layout:has(> .brief-card-image) {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.25rem;
+  }
+  .brief-featured h3 {
+    font-size: 1.625rem;
+  }
+  .brief-card.brief-featured[data-depth="quick"] h3 {
+    font-size: 1.125rem;
+  }
+}
+@media (max-width: 35.999rem) {
+  .brief-card[data-depth="quick"] .brief-card-layout:has(> .brief-card-image) {
+    grid-template-columns: 4.5rem minmax(0, 1fr);
+    align-items: start;
+    gap: 0.75rem;
+  }
 }
 .story-depth-links {
   display: flex;
@@ -667,6 +759,21 @@ kbd {
 }
 
 /* Private editorial workspace: mobile first, isolated from visitor layouts. */
+.desk-image-selector { border-top: 1px solid var(--line); margin-top: 2rem; padding-top: 1.5rem; display: grid; gap: 1rem; }
+.desk-image-selector h2, .desk-weekly-feature h2 { font-size: 1.25rem; font-weight: 500; line-height: 1.5; }
+.desk-image-options { display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; padding: 0; border: 0; }
+.editor-desk .desk-image-options label { display: flex; align-items: center; gap: .625rem; min-height: 44px; font-size: .875rem; }
+.editor-desk .desk-image-options input[type=radio] { width: 1.125rem; height: 1.125rem; min-height: 1.125rem; padding: 0; flex: 0 0 auto; }
+.desk-image-options label:has(input:disabled) { color: var(--muted); }
+.desk-image-upload, .desk-image-description { display: grid; gap: .5rem; font-size: .875rem; }
+.desk-image-upload input { max-width: 100%; padding: .625rem; border: 1px solid var(--line); border-radius: .5rem; }
+.desk-image-upload input::file-selector-button { background: var(--surface); border: 1px solid var(--line); border-radius: .375rem; color: var(--ink); padding: .5rem; margin-right: .75rem; cursor: pointer; }
+.desk-image-preview { background: var(--canvas); border: 1px solid var(--line); border-radius: .75rem; overflow: hidden; }
+.desk-image-preview img { display: block; width: 100%; max-height: 22rem; aspect-ratio: 16 / 9; object-fit: contain; }
+.desk-image-preview p { padding: 2rem 1.25rem; color: var(--muted); font-size: .875rem; line-height: 1.7; }
+.desk-weekly-feature { display: grid; gap: 1rem; padding: 1.5rem 0; margin-bottom: 1.5rem; border-block: 1px solid var(--line); }
+.desk-weekly-feature > label { display: grid; gap: .5rem; max-width: 18rem; font-size: .875rem; }
+.desk-feature-current { color: var(--accent); font-size: .875rem; }
 .desk-chrome { max-width: 88rem; margin: auto; padding: 1rem 1.25rem; display: flex; align-items: center; gap: 1rem; border-bottom: 1px solid var(--line); }
 .desk-chrome > span { font-size: .75rem; color: var(--muted); }
 .desk-chrome > a:last-child { margin-left: auto; font-size: .75rem; }

@@ -37,6 +37,12 @@ export function createDraftSession(initial: Tiers, version: number,
     getSnapshot: () => state,
     subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener); }; },
     pauseAutosave() { update({ paused: true }); },
+    invalidateReview() { update({ paused: false, sourceChecked: false, tiersChecked: false }); },
+    acceptSavedVersion(version: number) {
+      if (state.dirty || state.saving || state.error || !Number.isSafeInteger(version) || version <= state.version) return false;
+      update({ version, paused: false, sourceChecked: false, tiersChecked: false });
+      return true;
+    },
     serverConflict(error: DeskResult) { update({ error, sourceChecked: false, tiersChecked: false, paused: false }); },
     edit(content: Tiers) { update({ content, paused: false, sourceChecked: false, tiersChecked: false }); },
     async beginReview() {

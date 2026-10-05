@@ -12,6 +12,7 @@ import {
 } from "./icons";
 import { depths, digestText, type BriefStory, type Depth } from "@/lib/brief";
 import { dateLabel } from "@/lib/format";
+import { StoryImage } from "./story-image";
 
 export function BriefFeed({
   stories,
@@ -38,8 +39,18 @@ export function BriefFeed({
   const [today, setToday] = useState("");
   const feed = useRef<HTMLElement>(null);
   const edition = stories.filter((s) => s.edition_date === date);
+  const selectedWeek = editionWeek(date);
+  const featured = stories.find(
+    (story) =>
+      selectedWeek !== null &&
+      story.featured_week === selectedWeek &&
+      story.edition_date <= date &&
+      (filter === "All updates" || story.category === filter),
+  );
   const filtered = edition.filter(
-    (s) => filter === "All updates" || s.category === filter,
+    (story) =>
+      story.id !== featured?.id &&
+      (filter === "All updates" || story.category === filter),
   );
   useEffect(() => {
     setToday(new Date().toISOString().slice(0, 10));
@@ -212,111 +223,37 @@ export function BriefFeed({
             </select>
           </label>
         </div>
+        {featured && (
+          <section
+            className="brief-featured-section"
+            aria-labelledby="featured-title"
+          >
+            <div className="brief-featured-heading">
+              <h2 id="featured-title">Featured article of the week</h2>
+              <span>Week of {dateLabel(`${selectedWeek}T12:00:00Z`)}</span>
+            </div>
+            <BriefCard
+              story={featured}
+              current={overrides[featured.id] || depth}
+              onAdvance={() => advance(featured.id)}
+              preview={preview}
+              featured
+            />
+          </section>
+        )}
         <div className="brief-list">
-          {filtered.map((story, index) => {
-            const current = overrides[story.id] || depth;
-            return (
-              <article
-                className="brief-card"
-                data-depth={current}
-                key={story.id}
-                tabIndex={0}
-                aria-labelledby={`${story.slug}-title`}
-                onKeyDown={(event) => {
-                  if (
-                    event.key === " " &&
-                    event.target === event.currentTarget
-                  ) {
-                    event.preventDefault();
-                    advance(story.id);
-                  }
-                }}
-              >
-                <div className="brief-card-meta">
-                  <span className="brief-number">
-                    {String(index + 1).padStart(2, "0")}
-                  </span>
-                  <span className="category-tag">{story.category}</span>
-                  <span className="brief-source">
-                    {story.source_name} ·{" "}
-                    <time dateTime={story.source_published_at}>
-                      {dateLabel(story.source_published_at)}
-                    </time>
-                  </span>
-                  {current === "quick" && !preview && (
-                    <Link
-                      className="brief-version-link"
-                      href={`/brief/${story.slug}#one-liner`}
-                      aria-label={`Link to the one-liner: ${story.one_liner}`}
-                    >
-                      <Link2 size={16} aria-hidden="true" />
-                    </Link>
-                  )}
-                </div>
-                <h3 id={`${story.slug}-title`}>
-                  <button
-                    className="brief-headline"
-                    aria-expanded={current !== "quick"}
-                    aria-controls={`${story.slug}-body`}
-                    onClick={() => advance(story.id)}
-                  >
-                    {story.one_liner}
-                    <Plus size={20} aria-hidden="true" />
-                  </button>
-                </h3>
-                <div id={`${story.slug}-body`} hidden={current === "quick"}>
-                  <section id={`${story.slug}-short`} className="brief-short">
-                    <span className="eyebrow">The short version</span>
-                    <p>{story.short_version}</p>
-                  </section>
-                  <section
-                    id={`${story.slug}-full`}
-                    className="brief-full"
-                    hidden={current !== "deep"}
-                  >
-                    <span className="eyebrow">The whole picture</span>
-                    {story.whole_picture.map((paragraph, i) => (
-                      <p key={i}>{paragraph}</p>
-                    ))}
-                    <aside className="brief-matters">
-                      <strong>Why it matters</strong>
-                      <p>{story.why_it_matters}</p>
-                    </aside>
-                    <a
-                      className="small-link"
-                      href={story.source_url}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Read the {story.source_name} original{" "}
-                      <ArrowUpRight size={16} />
-                    </a>
-                  </section>
-                  <div className="brief-card-actions">
-                    <button
-                      className="small-link"
-                      onClick={() => advance(story.id)}
-                    >
-                      {current === "normal"
-                        ? "The whole picture"
-                        : "Back to the one-liner"}
-                      <ChevronDown size={16} aria-hidden="true" />
-                    </button>
-                    {!preview && (
-                      <Link
-                        className="small-link"
-                        href={`/brief/${story.slug}#${current === "deep" ? "full" : "short"}`}
-                      >
-                        Link to this version <ArrowUpRight size={16} />
-                      </Link>
-                    )}
-                  </div>
-                </div>
-              </article>
-            );
-          })}
+          {filtered.map((story, index) => (
+            <BriefCard
+              key={story.id}
+              story={story}
+              current={overrides[story.id] || depth}
+              onAdvance={() => advance(story.id)}
+              preview={preview}
+              index={index}
+            />
+          ))}
         </div>
-        {!filtered.length && (
+        {!filtered.length && !featured && (
           <div className="empty-state">
             <h3>
               {edition.length
@@ -387,5 +324,134 @@ export function BriefFeed({
         </Link>
       </section>
     </div>
+  );
+}
+
+function editionWeek(date: string): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+  const value = new Date(`${date}T12:00:00Z`);
+  if (Number.isNaN(value.getTime())) return null;
+  value.setUTCDate(value.getUTCDate() - ((value.getUTCDay() + 6) % 7));
+  return value.toISOString().slice(0, 10);
+}
+
+function BriefCard({
+  story,
+  current,
+  onAdvance,
+  preview,
+  featured = false,
+  index = 0,
+}: {
+  story: BriefStory;
+  current: Depth;
+  onAdvance: () => void;
+  preview: boolean;
+  featured?: boolean;
+  index?: number;
+}) {
+  return (
+    <article
+      className={`brief-card${featured ? " brief-featured" : ""}`}
+      data-depth={current}
+      tabIndex={0}
+      aria-labelledby={`${story.slug}-title`}
+      onKeyDown={(event) => {
+        if (event.key === " " && event.target === event.currentTarget) {
+          event.preventDefault();
+          onAdvance();
+        }
+      }}
+    >
+      <div className="brief-card-meta">
+        {!featured && (
+          <span className="brief-number">
+            {String(index + 1).padStart(2, "0")}
+          </span>
+        )}
+        <span className="category-tag">{story.category}</span>
+        <span className="brief-source">
+          {story.source_name} ·{" "}
+          <time dateTime={story.source_published_at}>
+            {dateLabel(story.source_published_at)}
+          </time>
+        </span>
+        {current === "quick" && !preview && (
+          <Link
+            className="brief-version-link"
+            href={`/brief/${story.slug}#one-liner`}
+            aria-label={`Link to the one-liner: ${story.one_liner}`}
+          >
+            <Link2 size={16} aria-hidden="true" />
+          </Link>
+        )}
+      </div>
+      <div className="brief-card-layout">
+        <StoryImage
+          src={story.image_url}
+          alt={story.image_alt}
+          className="brief-card-image"
+          priority={featured}
+        />
+        <div className="brief-card-copy">
+          <h3 id={`${story.slug}-title`}>
+            <button
+              className="brief-headline"
+              aria-expanded={current !== "quick"}
+              aria-controls={`${story.slug}-body`}
+              onClick={onAdvance}
+            >
+              {story.one_liner}
+              <Plus size={20} aria-hidden="true" />
+            </button>
+          </h3>
+          <div id={`${story.slug}-body`} hidden={current === "quick"}>
+            <section id={`${story.slug}-short`} className="brief-short">
+              <span className="eyebrow">The short version</span>
+              <p>{story.short_version}</p>
+            </section>
+            <section
+              id={`${story.slug}-full`}
+              className="brief-full"
+              hidden={current !== "deep"}
+            >
+              <span className="eyebrow">The whole picture</span>
+              {story.whole_picture.map((paragraph, i) => (
+                <p key={i}>{paragraph}</p>
+              ))}
+              <aside className="brief-matters">
+                <strong>Why it matters</strong>
+                <p>{story.why_it_matters}</p>
+              </aside>
+              <a
+                className="small-link"
+                href={story.source_url}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Read the {story.source_name} original{" "}
+                <ArrowUpRight size={16} />
+              </a>
+            </section>
+            <div className="brief-card-actions">
+              <button className="small-link" onClick={onAdvance}>
+                {current === "normal"
+                  ? "The whole picture"
+                  : "Back to the one-liner"}
+                <ChevronDown size={16} aria-hidden="true" />
+              </button>
+              {!preview && (
+                <Link
+                  className="small-link"
+                  href={`/brief/${story.slug}#${current === "deep" ? "full" : "short"}`}
+                >
+                  Link to this version <ArrowUpRight size={16} />
+                </Link>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </article>
   );
 }
