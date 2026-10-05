@@ -138,12 +138,41 @@ test('publisher controls persist and automatic drafting requires explicit charge
   await expect(page.locator('.desk-feedback[role=alert]')).toBeVisible();
 });
 
+test('draft fields stay read-only until hydration and preserve the first edit',async({page})=>{
+  let releaseScripts!:()=>void;
+  const scriptsReady=new Promise<void>(resolve=>{releaseScripts=resolve;});
+  let heldScripts=0;
+  await page.route('**/_next/static/**/*.js',async route=>{
+    heldScripts++;
+    await scriptsReady;
+    await route.continue();
+  });
+  const why=page.getByRole('textbox',{name:'Why it matters',exact:true});
+  try {
+    await page.goto('/editor?view=drafts&id=10000000-0000-4000-8000-000000000001',{waitUntil:'commit'});
+    await expect(why).toBeVisible();
+    await expect.poll(()=>heldScripts).toBeGreaterThan(0);
+    await expect(why).not.toBeEditable();
+  } finally {
+    releaseScripts();
+  }
+  await expect(why).toBeEditable();
+  await why.fill('The first edit after hydration must replace the original text.');
+  await expect(why).toHaveValue('The first edit after hydration must replace the original text.');
+  await expect(page.locator('.desk-work-actions')).toContainText('Version 2');
+  await page.reload();
+  await expect(why).toHaveValue('The first edit after hydration must replace the original text.');
+});
+
 test('history shows the latest save and restores it as a new private draft',async({page})=>{
   await page.goto('/editor?view=drafts&id=10000000-0000-4000-8000-000000000001');
   const why=page.getByRole('textbox',{name:'Why it matters',exact:true});
   await why.fill('A first correction worth preserving in revision history.');
+  await expect(why).toHaveValue('A first correction worth preserving in revision history.');
   await expect(page.locator('.desk-work-actions')).toContainText('Version 2');
+  await expect(why).toHaveValue('A first correction worth preserving in revision history.');
   await why.fill('A second correction for comparison.');
+  await expect(why).toHaveValue('A second correction for comparison.');
   await expect(page.locator('.desk-work-actions')).toContainText('Version 3');
   const publicBefore=await (await page.request.get('/api/brief')).text();
   await page.getByRole('button',{name:'Revision history',exact:true}).click();

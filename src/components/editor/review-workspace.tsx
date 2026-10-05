@@ -14,6 +14,10 @@ export function ReviewWorkspace({ revision, history, revisions, attempts, limit,
   mutate: DeskAction; onBack: () => void; onOpen: (id: string) => void;
   refreshHistory: () => void; historyLoading: boolean;
 }) {
+  // Server HTML is visible before React attaches controlled-input handlers.
+  // Keep edits read-only until hydration so early typing cannot be overwritten.
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => { setHydrated(true); }, []);
   const [session] = useState(() => createDraftSession(revision.content, revision.version,
     (content, version) => mutate({ intent: "save", id: revision.id, version, content })));
   const state = useSyncExternalStore(session.subscribe, session.getSnapshot, session.getSnapshot);
@@ -37,7 +41,7 @@ export function ReviewWorkspace({ revision, history, revisions, attempts, limit,
   const [dailyLimit, setDailyLimit] = useState(limit);
   useEffect(() => { setAttemptsUsed(attempts); setDailyLimit(limit); }, [attempts, limit]);
   const source = revision.brief_sources;
-  const editable = decision === "needs_review";
+  const editable = hydrated && decision === "needs_review";
   const errors = validateTiers(state.content, revision.source_text);
   const guard = useNavigationGuard(state.dirty || state.saving || busy, state.saving || busy, () => session.pauseAutosave());
   const matches = quoteMatches(revision.source_text, quote);

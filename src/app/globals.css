@@ -2328,6 +2328,9 @@ a:hover > .story-top > svg {
   align-items: center;
   gap: 0.25rem;
 }
+.footer-links .footer-rss {
+  min-height: 2.75rem;
+}
 .footer-links a:hover {
   color: var(--ink);
 }
