@@ -8,6 +8,9 @@ import { normalizeSourceUrl } from "../brief";
 import { categorize, plainText } from "../news";
 
 const hash = (text: string) => createHash("sha256").update(text).digest("hex");
+const primaryFeedNames = new Set(["OpenAI", "Google", "Hugging Face", "Google DeepMind", "Google Research", "Meta Engineering"]);
+const autoDraftFeedNames = new Set(["OpenAI", "Google", "Hugging Face", "TechCrunch"]);
+const aiTopic = /\b(?:AI|LLMs?|GPT|Gemini|Claude|language models?|foundation models?|machine (?:learning|intelligence)|generative|neural|transformer|diffusion|agent(?:s|ic)?|inference|model training|natural language processing|ML applications)\b/i;
 const check = (error: { message: string } | null) => {
   if (error)
     throw new Error(
@@ -19,7 +22,9 @@ export async function discoverStories() {
   const db = serviceDatabase();
   let discovered = 0;
   const unavailable: string[] = [];
+  const scanWarnings: string[] = [];
   const discoveredIds: string[] = [];
+  const autoDraftIds: string[] = [];
   const publishers = await db.from("brief_publishers").select("id,name,feed_url").eq("enabled", true);
   check(publishers.error);
   for (const publisher of publishers.data || []) {
@@ -27,28 +32,42 @@ export async function discoverStories() {
     check((await db.from("brief_publishers").update({last_attempt_at: new Date().toISOString()}).eq("id",publisherId)).error);
     try {
       const raw = await boundedFetch(
-        url,
+        normalizeSourceUrl(url),
         { signal: AbortSignal.timeout(15000) },
         1_500_000,
         3,
       );
       const xml = new XMLParser({ processEntities: false, ignoreAttributes: false }).parse(raw);
-      const entries = xml.rss?.channel?.item;
-      if (!xml.rss?.channel) throw new Error("Invalid feed");
+      const channel = xml.rss?.channel;
+      const feed = xml.feed;
+      if (!channel && !feed) throw new Error("Invalid feed");
+      const entries = channel ? channel.item : feed.entry;
       const items = Array.isArray(entries) ? entries : entries ? [entries] : [];
-      for (const item of items.slice(0, 8)) {
+      const scanLimit = primaryFeedNames.has(name) ? 50 : 8;
+      const scanWarning = items.length > scanLimit ? `${name}: only the first ${scanLimit} feed entries were scanned. Review feed cadence to avoid missing stories.` : null;
+      for (const [index, item] of items.slice(0, scanLimit).entries()) {
+        const links = Array.isArray(item.link) ? item.link : [item.link];
+        const alternate = feed ? links.find((link: Record<string, string>) => link?.["@_rel"] === "alternate") ||
+          links.find((link: Record<string, string>) => link?.["@_href"] && !link["@_rel"]) : null;
         let canonical: string;
         try {
-          canonical = normalizeSourceUrl(String(item.link));
+          canonical = normalizeSourceUrl(String(channel ? item.link : alternate?.["@_href"]));
         } catch {
           continue;
         }
-        const title = plainText(item.title).slice(0, 500);
-        const date = new Date(item.pubDate);
+        const title = plainText(typeof item.title === "object" ? item.title?.["#text"] : item.title).slice(0, 500);
+        const categories = Array.isArray(item.category) ? item.category : [item.category];
+        const topics = categories.flatMap((category: unknown) => {
+          if (!category || typeof category !== "object") return [category];
+          const fields = category as Record<string, unknown>;
+          return [fields["#text"], fields["@_term"], fields["@_label"]];
+        }).map(plainText).join(" ");
+        const date = new Date(channel ? item.pubDate : item.published);
         if (
           !title ||
           !Number.isFinite(date.getTime()) ||
           date.getTime() > Date.now() + 300000 ||
+          (["Google Research", "Meta Engineering"].includes(name) && !aiTopic.test(`${title} ${topics}`)) ||
           (name === "TechCrunch" &&
             /expo.*pass|disrupt.*ticket|last.*chance|save.*\$|deal.*disrupt/i.test(
               title,
@@ -84,15 +103,17 @@ export async function discoverStories() {
         if (inserted.data?.length) {
           discovered++;
           discoveredIds.push(inserted.data[0].id);
+          if (index < 8 && autoDraftFeedNames.has(name)) autoDraftIds.push(inserted.data[0].id);
         }
       }
-      check((await db.from("brief_publishers").update({last_success_at:new Date().toISOString(),last_error:null}).eq("id",publisherId)).error);
+      check((await db.from("brief_publishers").update({last_success_at:new Date().toISOString(),last_error:scanWarning}).eq("id",publisherId)).error);
+      if (scanWarning) scanWarnings.push(scanWarning);
     } catch {
       unavailable.push(name);
       check((await db.from("brief_publishers").update({last_error:"Feed retrieval or validation failed. Try refreshing again."}).eq("id",publisherId)).error);
     }
   }
-  return { discovered, discoveredIds, unavailable, message: `${discovered} new stories discovered. No drafts generated.${unavailable.length ? ` Unavailable feeds: ${unavailable.join(", ")}.` : ""}` };
+  return { discovered, discoveredIds, autoDraftIds, unavailable, message: `${discovered} new stories discovered. No drafts generated.${unavailable.length ? ` Unavailable feeds: ${unavailable.join(", ")}.` : ""}${scanWarnings.length ? ` Scan limit reached: ${scanWarnings.join(" ")}` : ""}` };
 }
 
 export async function runScheduledEditorial() {
@@ -101,8 +122,37 @@ export async function runScheduledEditorial() {
   const setting = await db.from("brief_settings").select("auto_draft").eq("id",true).single();
   check(setting.error);
   if (!setting.data?.auto_draft) return discovery;
-  check((await db.rpc("enqueue_brief_auto",{p_ids:discovery.discoveredIds})).error);
-  const batch = await runEditorialBatch(null);
+  check((await db.rpc("enqueue_brief_auto",{p_ids:discovery.autoDraftIds})).error);
+  // Include auto jobs left from earlier runs, but never hand a manual job or a
+  // new-feed job left by a partial rollout to the scheduled paid worker.
+  const eligiblePublishers = await db.from("brief_publishers").select("id,name")
+    .in("name", [...autoDraftFeedNames]);
+  check(eligiblePublishers.error);
+  const eligiblePublisherIds = new Set((eligiblePublishers.data || [])
+    .filter(publisher => autoDraftFeedNames.has(publisher.name)).map(publisher => publisher.id));
+  const autoJobIds: string[] = [];
+  for (let offset = 0; ; offset += 1000) {
+    const queued = await db.from("brief_jobs").select("id,story_id,dedupe_key")
+      .eq("state", "queued").eq("selected", true).like("dedupe_key", "%:auto")
+      .order("id").range(offset, offset + 999);
+    check(queued.error);
+    const jobs = queued.data || [];
+    const candidateStoryIds = [...new Set(jobs
+      .filter(job => job.dedupe_key === `${job.story_id}:auto`).map(job => job.story_id))];
+    const eligibleSourceIds = new Set<string>();
+    for (let i = 0; eligiblePublisherIds.size && i < candidateStoryIds.length; i += 100) {
+      const sources = await db.from("brief_sources").select("id,publisher_id")
+        .in("id", candidateStoryIds.slice(i, i + 100));
+      check(sources.error);
+      for (const source of sources.data || []) {
+        if (eligiblePublisherIds.has(source.publisher_id)) eligibleSourceIds.add(source.id);
+      }
+    }
+    autoJobIds.push(...jobs.filter(job => job.dedupe_key === `${job.story_id}:auto`
+      && eligibleSourceIds.has(job.story_id)).map(job => job.id));
+    if (jobs.length < 1000) break;
+  }
+  const batch = await runEditorialBatch(autoJobIds);
   return {...discovery,...batch};
 }
 

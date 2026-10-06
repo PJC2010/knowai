@@ -142,7 +142,7 @@ export async function retrieveImportMetadata(input: string) {
   const date = published ? new Date(published) : null;
   if (!date || !Number.isFinite(date.getTime()) || date.getTime() > Date.now()+300000)
     throw new Error('No trustworthy original publication date was found. Import from a dated publisher feed instead; today’s date will not be invented.');
-  const names: Record<string,string> = {'openai.com':'OpenAI','blog.google':'Google','huggingface.co':'Hugging Face','techcrunch.com':'TechCrunch'};
+  const names: Record<string,string> = {'openai.com':'OpenAI','blog.google':'Google','huggingface.co':'Hugging Face','techcrunch.com':'TechCrunch','deepmind.google':'Google DeepMind','research.google':'Google Research','engineering.fb.com':'Meta Engineering'};
   return {url,title,source_published_at:date.toISOString(),source_name:names[new URL(url).hostname],source_image_url:extractSourceImage(html,url)};
 }
 

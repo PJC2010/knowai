@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { DeskData, DeskQuery, DeskMutation, DeskResult } from "./desk-types";
+import type { DeskData, DeskQuery, DeskMutation, DeskResult, EventContext } from "./desk-types";
+import { suggestRelatedCoverage, type EventSource } from "./event-candidates";
 import { requireEditor, serviceDatabase } from "./supabase";
 import { discoverStories, runEditorialBatch } from "./pipeline";
 import { boundedFetch, retrieveImportMetadata, retrieveSourceImage } from "./source";
@@ -73,6 +74,36 @@ async function performDeskMutation(input: DeskMutation, {db,user}: Session): Pro
       const inserted = await service.from('brief_sources').upsert({...metadata,slug,category:categorize(metadata.title),publisher_id:publisher.data.id},{onConflict:'url',ignoreDuplicates:true}).select('id');
       if (inserted.error) throw new DeskError('The article could not be imported. Try again.','failed');
       return {ok:true,message:inserted.data?.length?'Article imported to the inbox. No drafts generated.':'This article is already in your desk; its existing selection is unchanged.'};
+    }
+    if (input.intent === 'event-detail') {
+      const event = await rpc<EventContext>(db,'load_brief_event',{p_source_id:input.id});
+      if (!event || !Array.isArray(event.members)) throw new DeskError('Event group is unavailable. Reload the editorial desk.','failed');
+      const anchor = event.members.find(member => member.id===input.id);
+      if (!anchor || !Number.isFinite(Date.parse(anchor.source_published_at))) throw new DeskError('The original source date is unavailable for matching.','failed');
+      const time=Date.parse(anchor.source_published_at), windowMs=72*60*60*1000;
+      const nearby = await db.from('brief_sources').select('id,title,source_name,source_published_at,url')
+        .gte('source_published_at',new Date(time-windowMs).toISOString())
+        .lte('source_published_at',new Date(time+windowMs).toISOString())
+        .order('source_published_at',{ascending:false}).limit(300);
+      if (nearby.error) throw new DeskError('Nearby source metadata could not be loaded. Try again.','failed');
+      const members=new Set(event.members.map(member=>member.id));
+      const candidates=suggestRelatedCoverage(anchor,(nearby.data || []) as EventSource[],members);
+      return {ok:true,message:'Private event metadata loaded. No stories were grouped automatically.',event,candidates};
+    }
+    if (input.intent === 'event-search') {
+      if (typeof input.term!=='string' || input.term.trim().length<3 || input.term.trim().length>80) throw new DeskError('Search with 3 to 80 characters.');
+      const matches=await rpc<EventSource[]>(db,'search_brief_event_sources',{p_source_id:input.id,p_term:input.term.trim()});
+      return {ok:true,message:'Stored article search complete. Compare original reporting before grouping.',matches};
+    }
+    if (input.intent === 'event-merge') {
+      requireId(input.otherId);
+      if (input.id===input.otherId) throw new DeskError('Choose two different sources.');
+      await rpc<string>(db,'merge_brief_events',{p_lead_source:input.id,p_other_source:input.otherId});
+      return {ok:true,message:'Private event groups merged. Drafts and public stories are unchanged.'};
+    }
+    if (input.intent === 'event-split' || input.intent === 'event-lead') {
+      await rpc<string>(db,input.intent==='event-split'?'split_brief_event_source':'set_brief_event_lead',{p_source_id:input.id});
+      return {ok:true,message:input.intent==='event-split'?'Source removed from the private group. Public stories are unchanged.':'Private lead source updated. Public stories are unchanged.'};
     }
     if (input.intent === 'generate' || input.intent === 'regenerate' || input.intent === 'run-queued') {
       if (input.confirmCharge !== true) throw new DeskError('Confirm generation may incur charges.');

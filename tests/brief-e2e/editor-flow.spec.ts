@@ -71,6 +71,28 @@ test('source preview returns focus on Escape and pagination reaches stories beyo
   await expect(trigger).toBeFocused();
 });
 
+test('editor privately merges coverage, chooses a lead, and splits it without changing public stories',async({page})=>{
+  const publicBefore=await (await page.request.get('/api/brief')).text();
+  await page.goto('/editor?q=Fixture%20candidate%20134');
+  await page.locator('.desk-story').first().getByRole('button',{name:/Source preview/}).click();
+  const coverage=page.getByRole('region',{name:'Related coverage'});
+  await expect(coverage).toContainText('1 source in this private group');
+  await coverage.getByRole('searchbox',{name:'Find another stored article'}).fill('Fixture candidate 133');
+  await coverage.getByRole('button',{name:'Search coverage'}).click();
+  const other=coverage.locator('.desk-event-search-result').filter({hasText:'Fixture candidate 133'});
+  await expect(other).toBeVisible();
+  page.once('dialog',async dialog=>{expect(dialog.type()).toBe('confirm');await dialog.accept();});
+  await other.getByRole('button',{name:'Merge private groups'}).click();
+  await expect(coverage).toContainText('2 sources in this private group');
+  const linked=coverage.locator('.desk-event-member').filter({hasText:'Fixture candidate 133'});
+  await linked.getByRole('button',{name:'Choose as lead'}).click();
+  await expect(linked).toContainText('Lead (private)');
+  await linked.getByRole('button',{name:'Remove from group'}).click();
+  await expect(coverage).toContainText('1 source in this private group');
+  await expect(page.getByText('0 / 10 attempts today')).toBeVisible();
+  expect(await (await page.request.get('/api/brief')).text()).toBe(publicBefore);
+});
+
 test('autosave persists edits and a concurrent editor conflict keeps local text',async({page,context})=>{
   const path='/editor?view=drafts&id=10000000-0000-4000-8000-000000000001';
   await page.goto(path);
@@ -113,6 +135,12 @@ test('evidence links highlight exact text and edits invalidate final review',asy
 
 test('publisher controls persist and automatic drafting requires explicit charge consent',async({page})=>{
   await page.goto('/editor?view=sources');
+  for(const name of ['Google DeepMind','Google Research','Meta Engineering']) {
+    const card=page.locator('.desk-publisher').filter({has:page.getByRole('heading',{name,exact:true})});
+    await expect(card.getByRole('switch')).toBeChecked();
+    await expect(card.getByRole('link')).toHaveAttribute('href',/^https:\/\//);
+  }
+  await expect(page.getByText(/original four feeds only/i)).toBeVisible();
   const publisher=page.locator('.desk-publisher').filter({has:page.getByRole('heading',{name:'OpenAI',exact:true})});
   await publisher.getByRole('switch').click();
   await expect(publisher.getByRole('switch')).not.toBeChecked();
