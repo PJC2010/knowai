@@ -925,6 +925,8 @@ kbd {
 .desk-event-list .desk-card-actions { margin-top: .25rem; }
 .desk-event-search { display: grid; gap: .5rem; }
 .desk-event-search button { justify-self: start; }
+.desk-event-merge-review { display: grid; gap: .75rem; border: 1px solid var(--line); border-radius: .5rem; padding: .75rem; }
+.desk-event-merge-review > section { display: grid; gap: .5rem; }
 .desk-source-text { position: relative; flex: 1; overflow-y: auto; min-height: 12rem; line-height: 1.9; white-space: pre-wrap; background: var(--canvas); padding: 1.25rem; border-radius: .5rem; font-size: 1rem; overscroll-behavior: contain; }
 .desk-source-text mark { color: var(--accent-ink); background: var(--accent); padding: .1rem 0; }
 .desk-source-text mark[data-current=true] { outline: 2px solid var(--accent); outline-offset: 2px; }

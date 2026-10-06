@@ -81,8 +81,11 @@ test('editor privately merges coverage, chooses a lead, and splits it without ch
   await coverage.getByRole('button',{name:'Search coverage'}).click();
   const other=coverage.locator('.desk-event-search-result').filter({hasText:'Fixture candidate 133'});
   await expect(other).toBeVisible();
-  page.once('dialog',async dialog=>{expect(dialog.type()).toBe('confirm');await dialog.accept();});
-  await other.getByRole('button',{name:'Merge private groups'}).click();
+  await other.getByRole('button',{name:'Review merge',exact:true}).click();
+  const preview=coverage.getByRole('region',{name:'Review group merge',exact:true});
+  await expect(preview.getByRole('button',{name:'Confirm merge',exact:true})).toBeDisabled();
+  await preview.getByLabel('I reviewed every source in both groups.').check();
+  await preview.getByRole('button',{name:'Confirm merge',exact:true}).click();
   await expect(coverage).toContainText('2 sources in this private group');
   const linked=coverage.locator('.desk-event-member').filter({hasText:'Fixture candidate 133'});
   await linked.getByRole('button',{name:'Choose as lead'}).click();

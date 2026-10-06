@@ -1,6 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { DeskData, DeskQuery, DeskMutation, DeskResult, EventContext } from "./desk-types";
+import type { DeskData, DeskQuery, DeskMutation, DeskResult, EventContext, EventMergePreview, EventSnapshot } from "./desk-types";
 import { suggestRelatedCoverage, type EventSource } from "./event-candidates";
 import { requireEditor, serviceDatabase } from "./supabase";
 import { discoverStories, runEditorialBatch } from "./pipeline";
@@ -31,9 +31,15 @@ function requireDailyLimit(value: unknown) {
 }
 const validId = (id: unknown): id is string => typeof id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 function requireId(id: unknown) { if (!validId(id)) throw new DeskError('Select a valid story or revision.'); }
+function validEventSnapshot(value: unknown): value is EventSnapshot {
+  if (!value || typeof value !== 'object') return false;
+  const snapshot=value as EventSnapshot;
+  return validId(snapshot.eventId) && Number.isInteger(snapshot.version) && snapshot.version >= 1 && snapshot.version <= 2147483647;
+}
 async function rpc<T>(db: SupabaseClient, name: string, args: Record<string, unknown>): Promise<T> {
   const {data,error} = await db.rpc(name,args);
   if (error) {
+    if (error.code === 'P0001' && /^Event groups changed/i.test(error.message)) throw new DeskError('These groups changed while you were reviewing them. Nothing was merged. Reload both groups and confirm again.', 'conflict');
     if (/Draft changed|no longer editable|already reviewed|newer publication/i.test(error.message)) throw new DeskError('The draft changed or is no longer editable. Your local text is retained; reload the current version before retrying.', 'conflict');
     if (error.code === 'P0001') throw new DeskError(error.message);
     throw new DeskError('Editorial storage failed. Check the migration and try again; your local text is retained.', 'failed');
@@ -95,10 +101,22 @@ async function performDeskMutation(input: DeskMutation, {db,user}: Session): Pro
       const matches=await rpc<EventSource[]>(db,'search_brief_event_sources',{p_source_id:input.id,p_term:input.term.trim()});
       return {ok:true,message:'Stored article search complete. Compare original reporting before grouping.',matches};
     }
+    if (input.intent === 'event-merge-preview') {
+      requireId(input.otherId);
+      if (input.id===input.otherId) throw new DeskError('Choose two different sources.');
+      const mergePreview=await rpc<EventMergePreview>(db,'load_brief_event_merge_preview',{p_lead_source:input.id,p_other_source:input.otherId});
+      return {ok:true,message:'Review every source in both private groups before confirming.',mergePreview};
+    }
     if (input.intent === 'event-merge') {
       requireId(input.otherId);
       if (input.id===input.otherId) throw new DeskError('Choose two different sources.');
-      await rpc<string>(db,'merge_brief_events',{p_lead_source:input.id,p_other_source:input.otherId});
+      if (!validEventSnapshot(input.expectedTarget) || !validEventSnapshot(input.expectedOther) || input.expectedTarget.eventId===input.expectedOther.eventId)
+        throw new DeskError('Reload both groups and review them before confirming the merge.');
+      await rpc<string>(db,'merge_brief_events',{
+        p_lead_source:input.id,p_other_source:input.otherId,
+        p_target_event:input.expectedTarget.eventId,p_target_version:input.expectedTarget.version,
+        p_other_event:input.expectedOther.eventId,p_other_version:input.expectedOther.version,
+      });
       return {ok:true,message:'Private event groups merged. Drafts and public stories are unchanged.'};
     }
     if (input.intent === 'event-split' || input.intent === 'event-lead') {

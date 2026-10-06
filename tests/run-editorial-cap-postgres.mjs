@@ -5,16 +5,22 @@ import { promisify } from 'node:util';
 import { randomUUID } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 import { PsqlSession } from './postgres/psql-session.mjs';
-import { install, mutate, runSuite } from './postgres/editorial-cap.mjs';
+import * as capSuite from './postgres/editorial-cap.mjs';
 
 const options = {};
 for (let i = 2; i < process.argv.length; i += 2) {
   const flag = process.argv[i], value = process.argv[i + 1];
-  assert.ok(['--mutate', '--case'].includes(flag) && value && !options[flag],
-    'Usage: node tests/run-editorial-cap-postgres.mjs [--mutate generator|suggestion|setter] [--case name]');
+  assert.ok(['--suite', '--mutate', '--case'].includes(flag) && value && !options[flag],
+    'Usage: node tests/run-editorial-cap-postgres.mjs [--suite cap|events] [--mutate generator|suggestion|setter (cap only)] [--case name]');
   options[flag] = value;
 }
-if (options['--mutate']) assert.ok(['generator', 'suggestion', 'setter'].includes(options['--mutate']));
+assert.ok(['cap', 'events'].includes(options['--suite'] ?? 'cap'), 'Unknown --suite');
+if (options['--mutate']) {
+  assert.notEqual(options['--suite'], 'events', '--mutate is only supported by the cap suite');
+  assert.ok(['generator', 'suggestion', 'setter'].includes(options['--mutate']));
+}
+const { install, mutate, runSuite } = options['--suite'] === 'events'
+  ? await import('./postgres/editorial-events.mjs') : capSuite;
 
 // Fixed Unix socket and minimal environment prevent remote Docker/PG config reuse.
 const dockerArgs = ['--host', 'unix:///var/run/docker.sock'];
