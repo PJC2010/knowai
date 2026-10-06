@@ -1,4 +1,11 @@
 import { spawn } from "node:child_process";
+import { rm } from "node:fs/promises";
+
+// The fixture resets its database between tests, but Next's persistent public
+// fetch cache can outlive a prior browser run and return an obsolete publication.
+const fixtureCache = new URL("../.next/cache/fetch-cache/", import.meta.url);
+await rm(fixtureCache, { recursive: true, force: true });
+
 const env = {
   ...process.env,
   BRIEF_V2_ENABLED: "true",
@@ -51,4 +58,6 @@ try {
   try {
     process.kill(-fixture.pid, "SIGTERM");
   } catch {}
+  // Avoid leaving fixture publications in the cache for a normal local build.
+  await rm(fixtureCache, { recursive: true, force: true });
 }

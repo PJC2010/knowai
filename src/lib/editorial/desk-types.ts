@@ -1,5 +1,10 @@
 import type { Revision, Tiers } from "../brief";
 import type { NewsCategory } from "../types";
+import type { EventSource } from "./event-candidates";
+
+export type EventSnapshot = { eventId: string; version: number };
+export type EventContext = EventSnapshot & { leadSourceId: string; members: EventSource[] };
+export type EventMergePreview = { target: EventContext; other: EventContext };
 
 export type DeskSource = {
   id: string; slug: string; url: string; title: string; source_name: string;
@@ -35,6 +40,11 @@ export type DeskMutation =
   | { intent: "auto-draft"; enabled: boolean; confirmCharge: boolean }
   | { intent: "daily-cap"; limit: number; confirmCharge: boolean }
   | { intent: "import-url"; url: string }
+  | { intent: "event-detail"; id: string }
+  | { intent: "event-search"; id: string; term: string }
+  | { intent: "event-merge-preview"; id: string; otherId: string }
+  | { intent: "event-merge"; id: string; otherId: string; expectedTarget: EventSnapshot; expectedOther: EventSnapshot }
+  | { intent: "event-split" | "event-lead"; id: string }
   | { intent: "save"; id: string; version: number; content: Tiers }
   | { intent: "image"; id: string; version: number; imageSource: "source" | "upload" | "none"; imageAlt: string; imageUrl?: string | null }
   | { intent: "refresh-image"; id: string; version: number }
@@ -48,5 +58,6 @@ export type DeskResult = {
   ok: boolean; message: string; code?: "conflict" | "invalid" | "failed";
   version?: number; revisionId?: string; slug?: string; attemptsToday?: number; dailyAttemptLimit?: number;
   imageUrl?: string | null; imageAlt?: string | null; imageSource?: "source" | "upload" | "none"; sourceImageUrl?: string | null; featuredWeek?: string | null;
+  event?: EventContext; candidates?: EventSource[]; matches?: EventSource[]; mergePreview?: EventMergePreview;
   suggestion?: { field: "oneLiner" | "shortVersion" | "wholePicture" | "whyItMatters"; value: string | string[]; cost: number | null };
 };

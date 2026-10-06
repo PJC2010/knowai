@@ -207,6 +207,8 @@ test("editor saves a correction privately, requires review, then publishes the s
   await page.request.post("http://127.0.0.1:4310/_fixture/reset");
   await page.goto("/editor?view=drafts&id=10000000-0000-4000-8000-000000000001");
   await expect(page.getByRole("region", { name: "Story workspace" })).toBeVisible();
+  // The server-rendered workspace is visible before hydration enables editing.
+  await expect(page.getByRole("button", { name: "Find article image" })).toBeEnabled();
   const a11y = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
     .analyze();

@@ -915,6 +915,18 @@ kbd {
 .desk-source-dialog { inset: 0; top: 0; transform: none; max-height: 100dvh; border-radius: 0; padding: max(1rem, env(safe-area-inset-top)) 1rem max(1rem, env(safe-area-inset-bottom)); }
 .desk-source-dialog .desk-dialog-heading { flex-shrink: 0; }
 .desk-source-dialog > a { align-self: flex-start; }
+.desk-event-coverage { border-top: 1px solid var(--line); padding-top: 1.25rem; display: grid; gap: .75rem; }
+.desk-event-coverage h3 { font-size: 1.125rem; }
+.desk-event-coverage h4 { font-size: 1rem; margin-top: .75rem; }
+.desk-event-coverage p { margin: 0; }
+.desk-event-list { list-style: none; padding: 0; margin: 0; display: grid; gap: .5rem; }
+.desk-event-list li { display: grid; gap: .3rem; padding: .75rem; border: 1px solid var(--line); border-radius: .5rem; background: var(--canvas); }
+.desk-event-list li strong { font-weight: 600; line-height: 1.45; }
+.desk-event-list .desk-card-actions { margin-top: .25rem; }
+.desk-event-search { display: grid; gap: .5rem; }
+.desk-event-search button { justify-self: start; }
+.desk-event-merge-review { display: grid; gap: .75rem; border: 1px solid var(--line); border-radius: .5rem; padding: .75rem; }
+.desk-event-merge-review > section { display: grid; gap: .5rem; }
 .desk-source-text { position: relative; flex: 1; overflow-y: auto; min-height: 12rem; line-height: 1.9; white-space: pre-wrap; background: var(--canvas); padding: 1.25rem; border-radius: .5rem; font-size: 1rem; overscroll-behavior: contain; }
 .desk-source-text mark { color: var(--accent-ink); background: var(--accent); padding: .1rem 0; }
 .desk-source-text mark[data-current=true] { outline: 2px solid var(--accent); outline-offset: 2px; }
