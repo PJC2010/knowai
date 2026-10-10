@@ -123,6 +123,57 @@ test("updates preserve in-session changes when storage writes fail", async () =>
   });
 });
 
+test("a clear before the storage event cannot resurrect persisted history", async () => {
+  const old = { ...emptyMemory(), depth: "deep" as const, read: ["past"],
+    lastVisit: "2026-01-02T00:00:00Z", previousVisit: "2026-01-01T00:00:00Z",
+    welcomeDismissed: true };
+  const { storage, values } = memoryStorage(old);
+  await withHook(true, storage, async (hook, _render, window) => {
+    assert.deepEqual(hook().memory?.read, ["past"]);
+    assert.deepEqual(JSON.parse(values.get(READER_MEMORY_KEY)!), hook().memory);
+    values.delete(READER_MEMORY_KEY); // The other tab's storage event has not arrived yet.
+    await act(async () => hook().update((memory) => ({ ...memory, read: [...memory.read, "new"] })));
+    const expected = { ...emptyMemory(), read: ["new"] };
+    assert.deepEqual(hook().memory, expected);
+    assert.deepEqual(JSON.parse(values.get(READER_MEMORY_KEY)!), expected);
+    const event = new (window as unknown as { Event: typeof Event }).Event("storage");
+    Object.defineProperty(event, "key", { value: READER_MEMORY_KEY });
+    Object.defineProperty(event, "newValue", { value: null });
+    Object.defineProperty(event, "storageArea", { value: storage });
+    await act(async () => { window.dispatchEvent(event); });
+    assert.deepEqual(hook().memory, expected);
+  });
+});
+
+test("deleting a previously stored value after a failed mount write still clears old history", async () => {
+  const { storage, values } = memoryStorage({ ...emptyMemory(), read: ["past"], depth: "deep" });
+  storage.setItem = () => { throw Error("quota exceeded"); };
+  await withHook(true, storage, async (hook, _render, window) => {
+    values.delete(READER_MEMORY_KEY);
+    await act(async () => hook().update((memory) => ({ ...memory, read: [...memory.read, "new"] })));
+    const event = new (window as unknown as { Event: typeof Event }).Event("storage");
+    Object.defineProperty(event, "key", { value: READER_MEMORY_KEY });
+    Object.defineProperty(event, "newValue", { value: null });
+    Object.defineProperty(event, "storageArea", { value: storage });
+    await act(async () => { window.dispatchEvent(event); });
+    await act(async () => hook().update((memory) => ({ ...memory, welcomeDismissed: true })));
+    assert.deepEqual(hook().memory, { ...emptyMemory(), read: ["new"], welcomeDismissed: true });
+    assert.equal(values.has(READER_MEMORY_KEY), false);
+  });
+});
+
+test("failed first write with no stored key retains consecutive in-session changes", async () => {
+  const { storage, values } = memoryStorage();
+  storage.setItem = () => { throw Error("quota exceeded"); };
+  await withHook(true, storage, async (hook) => {
+    await act(async () => hook().update((memory) => ({ ...memory, read: ["a"] })));
+    await act(async () => hook().update((memory) => ({ ...memory, welcomeDismissed: true })));
+    assert.deepEqual(hook().memory?.read, ["a"]);
+    assert.equal(hook().memory?.welcomeDismissed, true);
+    assert.equal(values.has(READER_MEMORY_KEY), false);
+  });
+});
+
 test("a clear in another tab discards old history rather than resurrecting it on update", async () => {
   const { storage, values } = memoryStorage({ ...emptyMemory(), read: ["past"], depth: "deep" });
   await withHook(true, storage, async (hook, _render, window) => {
