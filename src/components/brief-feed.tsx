@@ -18,6 +18,7 @@ import { annotateSections, glossary } from "@/lib/glossary";
 import { playgroundHref, storyPrompt } from "@/lib/playground-link";
 import { catchUpStories, markRead, newStoryIds } from "@/lib/reader-memory";
 import { useReaderMemory } from "./use-reader-memory";
+import { SubscribeCard } from "./subscribe-card";
 
 export function BriefFeed({
   stories,
@@ -26,6 +27,7 @@ export function BriefFeed({
   initialCategory = "All updates",
   depthFromUrl = false,
   preview = false,
+  feedUrl,
 }: {
   stories: BriefStory[];
   initialDepth?: Depth;
@@ -33,6 +35,7 @@ export function BriefFeed({
   initialCategory?: string;
   depthFromUrl?: boolean;
   preview?: boolean;
+  feedUrl?: string;
 }) {
   const dates = [...new Set(stories.map((s) => s.edition_date))]
     .sort()
@@ -391,6 +394,7 @@ export function BriefFeed({
             : "AI assisted. Editor reviewed. Source dates stay visible; each version stands on its own. The digest includes every story in the selected edition."}
         </p>
       </section>
+      {feedUrl && !preview && <SubscribeCard feedUrl={feedUrl} />}
       <section className="brief-next">
         <Link href="/learn">
           <BookOpen size={24} />

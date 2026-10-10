@@ -1,5 +1,40 @@
 import { test, expect } from "@playwright/test";
 
+test("legacy homepage subscribe card copies the feed address", async ({ page, context }) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.goto("/");
+  const card = page.getByRole("region", { name: "Follow The Brief" });
+  await expect(card.getByRole("link", { name: "Open the RSS feed" })).toHaveAttribute("href", "/feed.xml");
+  await card.getByRole("button", { name: "Copy feed address" }).click();
+  await expect(card.getByRole("button", { name: "Copied" })).toBeVisible();
+  await expect(card.getByRole("status")).toHaveText("Feed address copied.");
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(/^https?:\/\/.+\/feed\.xml$/);
+});
+
+test("subscribe card falls back to a selectable address when the clipboard fails", async ({ page }) => {
+  await page.addInitScript(() => Object.defineProperty(navigator, "clipboard", { value: { writeText: () => Promise.reject(new Error("denied")) } }));
+  await page.goto("/");
+  const card = page.getByRole("region", { name: "Follow The Brief" });
+  await card.getByRole("button", { name: "Copy feed address" }).click();
+  const address = card.getByRole("textbox", { name: "Feed address" });
+  await expect(address).toHaveValue(/\/feed\.xml$/);
+  await address.focus();
+  expect(await address.evaluate((input: HTMLInputElement) => input.selectionStart)).toBe(0);
+  expect(await address.evaluate((input: HTMLInputElement) => input.selectionEnd)).toBe((await address.inputValue()).length);
+});
+
+test("subscribe card fits phones and has 44px targets", async ({ page }) => {
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+  for (const width of [320, 390, 1440]) {
+    await page.setViewportSize({ width, height: 844 });
+    const card = page.getByRole("region", { name: "Follow The Brief" });
+    await card.scrollIntoViewIfNeeded();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    for (const target of [card.getByRole("link", { name: "Open the RSS feed" }), card.getByRole("button", { name: "Copy feed address" })])
+      expect((await target.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  }
+});
+
 test("privacy explains on-device reading memory and clears it", async ({ page }) => {
   await page.goto("/privacy");
   await page.evaluate(() => {

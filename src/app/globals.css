@@ -903,6 +903,73 @@ a:hover > .story-top > svg {
 .news-card .article-meta {
   margin-top: auto;
 }
+.subscribe-card {
+  margin: 3rem 0;
+  padding: 2rem;
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+}
+.subscribe-card-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.subscribe-card-heading svg {
+  flex: none;
+  color: var(--accent);
+}
+.subscribe-card h2 {
+  font-size: 1.5rem;
+  line-height: 2rem;
+  font-weight: 600;
+}
+.subscribe-card > p {
+  max-width: 65ch;
+  margin-top: 0.75rem;
+  color: var(--muted);
+}
+.subscribe-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+.subscribe-card .button.secondary {
+  background: var(--surface);
+}
+.subscribe-card-address {
+  display: block;
+  margin-top: 1rem;
+  overflow-wrap: anywhere;
+}
+.subscribe-card-address input {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+.subscribe-card details {
+  margin-top: 1rem;
+}
+.subscribe-card summary {
+  width: fit-content;
+  min-height: 44px;
+  padding: 0.625rem 0;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+.subscribe-card details p {
+  max-width: 65ch;
+  margin-top: 0.5rem;
+  color: var(--muted);
+}
 .playground-banner {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -2954,6 +3021,17 @@ a:hover > .story-top > svg {
   .news-card > p {
     font-size: 1rem;
     line-height: 1.5rem;
+  }
+  .subscribe-card {
+    padding: 1.5rem;
+  }
+  .subscribe-card-actions {
+    flex-direction: column;
+  }
+  .subscribe-card-actions .button {
+    width: 100%;
+    white-space: normal;
+    text-align: center;
   }
   .playground-banner {
     grid-template-columns: 1fr;

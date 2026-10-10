@@ -375,7 +375,7 @@ git commit -m "feat(brief): explain the three depths to first-time visitors"
   - `Newsroom` new required prop `feedUrl: string`. The card renders after `.latest-section`.
   - `page.tsx` passes `feedUrl={new URL("/feed.xml", siteUrl()).href}` to both.
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 Unit (`brief-reader.test.ts`):
 ```ts
@@ -421,12 +421,12 @@ test("subscribe card fits phones and has 44px targets", async ({ page }) => {
 });
 ```
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `npm test` then `npm run build && npx playwright test tests/e2e/retention-public.spec.ts`
 Expected: the new unit test FAILS (no "Follow The Brief"); the three new e2e tests FAIL (region not found).
 
-- [ ] **Step 3: Implement `SubscribeCard`**, with copy verbatim from the spec:
+- [x] **Step 3: Implement `SubscribeCard`**, with copy verbatim from the spec:
 
 - Body: `New stories arrive in your feed reader after editorial review. No account or email needed.`
 - Link: `Open the RSS feed` (`href="/feed.xml" type="application/rss+xml"`).
@@ -435,12 +435,12 @@ Expected: the new unit test FAILS (no "Follow The Brief"); the three new e2e tes
 - Use the `Rss` icon, `aria-hidden`.
 - Wire it into `BriefFeed`, `Newsroom` and `page.tsx` as described in Interfaces.
 
-- [ ] **Step 4: Run to verify pass**
+- [x] **Step 4: Run to verify pass**
 
 Run: `npm run typecheck && npm test && npm run build && npx playwright test tests/e2e/retention-public.spec.ts tests/e2e/rss.spec.ts tests/e2e/site.spec.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/components/subscribe-card.tsx src/components/icons.ts src/components/brief-feed.tsx src/components/newsroom.tsx src/app/page.tsx src/app/globals.css tests/brief-reader.test.ts tests/e2e/retention-public.spec.ts

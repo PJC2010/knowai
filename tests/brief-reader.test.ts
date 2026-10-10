@@ -95,6 +95,22 @@ test("server markup has no welcome strip", () => {
   assert.doesNotMatch(preview, /Welcome to The Brief|New here\?/);
 });
 
+test("the subscribe card renders with the canonical feed and never in preview", () => {
+  const props = { stories: [story], initialDate: "2026-10-02", feedUrl: "https://knowai.example/feed.xml" };
+  const html = renderToStaticMarkup(createElement(BriefFeed, props));
+  assert.match(html, /Follow The Brief/);
+  assert.match(html, /href="\/feed.xml"/);
+  assert.match(html, /New stories arrive in your feed reader after editorial review\. No account or email needed\./);
+  const { document } = parseHTML(html);
+  const card = document.querySelector(".subscribe-card");
+  assert.equal(card?.previousElementSibling?.className, "brief-reading");
+  assert.equal(card?.nextElementSibling?.className, "brief-next");
+  assert.equal(card?.querySelector('a[href="/feed.xml"]')?.getAttribute("type"), "application/rss+xml");
+  assert.match(card?.textContent ?? "", /New to RSS\?.*A feed reader collects new posts from sites you follow\. Paste the feed address into any reader app\./);
+  assert.doesNotMatch(render([story], "2026-10-02"), /Follow The Brief/);
+  assert.doesNotMatch(renderToStaticMarkup(createElement(BriefFeed, { ...props, preview: true })), /Follow The Brief/);
+});
+
 test("the weekly feature appears once and retains the selected article image", () => {
   const html = render([story], "2026-10-02");
   assert.equal((html.match(/class="brief-card brief-featured"/g) || []).length, 1);
