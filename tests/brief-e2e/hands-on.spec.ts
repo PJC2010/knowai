@@ -16,6 +16,7 @@ test("glossary term explains itself and links to AI 101", async ({ page }) => {
   await term.click();
   await page.locator(".glossary-pop:popover-open").getByRole("link", { name: "More in the AI 101 glossary" }).click();
   await expect(page).toHaveURL(/\/learn#term-training-data$/);
+  await expect(page.locator("#term-training-data")).toBeInViewport();
 });
 
 test("glossary controls are keyboard-operable and have non-overlapping touch targets", async ({ page }) => {
