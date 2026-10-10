@@ -550,7 +550,7 @@ git commit -m "feat(story): add Keep reading, subscribe, and Brief links to stor
 Run: `npm run typecheck && npm test && npm run test:brief && npm run build && npx playwright test`
 Expected: all unit/db tests pass, all Brief fixture tests pass, the production build succeeds, and all public e2e tests pass.
 
-- [x] **Step 3: Commit** (local docs/bookkeeping commit; R7 independent acceptance remains pending)
+- [x] **Step 3: Commit** (local docs/bookkeeping commit `4c1ef55`; R7 and whole-branch independent review accepted with no findings; production rollout pending)
 
 ```bash
 git add README.md docs/roadmap.md
