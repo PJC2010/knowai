@@ -463,7 +463,7 @@ git commit -m "feat(models): estimate monthly cost of everyday tasks without an 
 - Consumes (retention plan): `useReaderMemory(enabled)`, `ReaderMemory`, and the `BriefCard` `marker` prop.
 - Produces: `catchUpStories<T extends Pick<BriefStory, "id" | "published_at">>(stories: T[], previousVisit: string | null): T[]`. Returns stories with `Date.parse(published_at) > Date.parse(previousVisit)`, newest first; `[]` when `previousVisit` is null.
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 Unit:
 ```ts
@@ -495,12 +495,12 @@ test("no catch-up on a first visit", async ({ page }) => {
 });
 ```
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `npx tsx --test tests/reader-memory.test.ts`, then `npm run test:brief`
 Expected: unit FAILS (`catchUpStories` not exported); both e2e tests run, and the first FAILS (button missing).
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Add `catchUpStories`. In `BriefFeed`, add `catchingUp` state. Build the button label with `dateLabel(memory.previousVisit)` and the singular/plural `story`/`stories` per the spec. Place the button in `.brief-toolbar`.
 
@@ -511,12 +511,12 @@ While catching up:
 
 Move focus with refs after the state change. Hide everything in `preview`.
 
-- [ ] **Step 4: Run to verify pass**
+- [x] **Step 4: Run to verify pass**
 
 Run: `npm run typecheck && npm test && npm run test:brief`
 Expected: PASS, including all `retention.spec.ts` tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/reader-memory.ts src/components/brief-feed.tsx src/app/brief.css tests/reader-memory.test.ts tests/brief-e2e/hands-on.spec.ts

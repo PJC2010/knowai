@@ -82,6 +82,19 @@ export function newStoryIds(
   return new Set(stories.filter((story) => Date.parse(story.published_at) > since).map((story) => story.id));
 }
 
+export function catchUpStories<T extends Pick<BriefStory, "id" | "published_at">>(
+  stories: T[], previousVisit: string | null,
+): T[] {
+  const since = previousVisit === null ? NaN : Date.parse(previousVisit);
+  if (!Number.isFinite(since)) return [];
+  const seen = new Set<string>();
+  return stories.filter((story) => {
+    if (!(Date.parse(story.published_at) > since) || seen.has(story.id)) return false;
+    seen.add(story.id);
+    return true;
+  }).sort((a, b) => Date.parse(b.published_at) - Date.parse(a.published_at));
+}
+
 export function browserStorage(): Storage | null {
   try {
     return typeof window === "undefined" ? null : window.localStorage;

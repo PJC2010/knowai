@@ -16,6 +16,8 @@ import { StoryImage } from "./story-image";
 import { GlossaryText } from "./glossary-text";
 import { annotateSections, glossary } from "@/lib/glossary";
 import { playgroundHref, storyPrompt } from "@/lib/playground-link";
+import { catchUpStories } from "@/lib/reader-memory";
+import { useReaderMemory } from "./use-reader-memory";
 
 export function BriefFeed({
   stories,
@@ -40,7 +42,13 @@ export function BriefFeed({
   const [copied, setCopied] = useState(false);
   const [copyFallback, setCopyFallback] = useState("");
   const [today, setToday] = useState("");
+  const [catchingUp, setCatchingUp] = useState(false);
+  const { memory } = useReaderMemory(!preview);
   const feed = useRef<HTMLElement>(null);
+  const catchUpButton = useRef<HTMLButtonElement>(null);
+  const catchUpTitle = useRef<HTMLHeadingElement>(null);
+  const wasCatchingUp = useRef(false);
+  const catchUp = catchUpStories(stories, memory?.previousVisit ?? null);
   const edition = stories.filter((s) => s.edition_date === date);
   const selectedWeek = editionWeek(date);
   const featured = stories.find(
@@ -58,6 +66,11 @@ export function BriefFeed({
   useEffect(() => {
     setToday(new Date().toISOString().slice(0, 10));
   }, []);
+  useEffect(() => {
+    if (catchingUp) catchUpTitle.current?.focus();
+    else if (wasCatchingUp.current) catchUpButton.current?.focus();
+    wasCatchingUp.current = catchingUp;
+  }, [catchingUp]);
   useEffect(() => {
     const navigate = (event: KeyboardEvent) => {
       if (
@@ -134,7 +147,7 @@ export function BriefFeed({
           {preview ? "Unpublished preview" : "AI, in plain English"}
         </span>
         <span>
-          {date
+          {catchingUp ? "Across available editions" : date
             ? `${dateLabel(date + "T12:00:00Z")} · UTC`
             : "Your next briefing"}
         </span>
@@ -163,30 +176,43 @@ export function BriefFeed({
         <div className="brief-toolbar">
           <div>
             <h2 id="brief-title">
-              {today && date === today ? "Today’s briefing" : "The briefing"}
+              {catchingUp ? "Catch-up reading" : today && date === today ? "Today’s briefing" : "The briefing"}
             </h2>
             <p>
-              {edition.length} {edition.length === 1 ? "story" : "stories"}.
-              Three ways in.
+              {catchingUp
+                ? "New among available approved stories since your last visit."
+                : <>{edition.length} {edition.length === 1 ? "story" : "stories"}. Three ways in.</>}
             </p>
           </div>
-          <div className="depth-toggle" role="group" aria-label="Reading depth">
-            {depths.map((value, i) => (
-              <button
-                key={value}
-                aria-pressed={depth === value}
-                onClick={() => {
-                  setDepth(value);
-                  setOverrides({});
-                  updateUrl({ depth: value });
-                }}
-              >
-                {["Quick scan", "Normal", "Deep"][i]}
+          <div className="brief-toolbar-actions">
+            {!catchingUp && !preview && memory?.previousVisit && catchUp.length > 0 && (
+              <button ref={catchUpButton} className="button secondary catch-up-button" onClick={() => setCatchingUp(true)}>
+                Catch me up: {catchUp.length} new {catchUp.length === 1 ? "story" : "stories"} since {dateLabel(memory.previousVisit)}
               </button>
-            ))}
+            )}
+            {catchingUp && (
+              <button className="button secondary catch-up-button" onClick={() => setCatchingUp(false)}>
+                Back to the briefing
+              </button>
+            )}
+            <div className="depth-toggle" role="group" aria-label="Reading depth">
+              {depths.map((value, i) => (
+                <button
+                  key={value}
+                  aria-pressed={depth === value}
+                  onClick={() => {
+                    setDepth(value);
+                    setOverrides({});
+                    updateUrl({ depth: value });
+                  }}
+                >
+                  {["Quick scan", "Normal", "Deep"][i]}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
-        <div className="brief-controls">
+        {!catchingUp && <div className="brief-controls">
           <div className="filter-tabs" aria-label="Filter news">
             {["All updates", "Models", "Research", "Industry", "Tools"].map(
               (category) => (
@@ -225,86 +251,113 @@ export function BriefFeed({
               ))}
             </select>
           </label>
-        </div>
-        {featured && (
-          <section
-            className="brief-featured-section"
-            aria-labelledby="featured-title"
-          >
-            <div className="brief-featured-heading">
-              <h2 id="featured-title">Featured article of the week</h2>
-              <span>Week of {dateLabel(`${selectedWeek}T12:00:00Z`)}</span>
+        </div>}
+        {catchingUp ? (
+          <section className="brief-catch-up" aria-labelledby="catch-up-title">
+            <h2 id="catch-up-title" ref={catchUpTitle} tabIndex={-1}>Since your last visit</h2>
+            <div className="brief-list">
+              {catchUp.map((story, index) => (
+                <BriefCard
+                  key={story.id}
+                  story={story}
+                  current={overrides[story.id] || depth}
+                  onAdvance={() => advance(story.id)}
+                  preview={preview}
+                  index={index}
+                />
+              ))}
             </div>
-            <BriefCard
-              story={featured}
-              current={overrides[featured.id] || depth}
-              onAdvance={() => advance(featured.id)}
-              preview={preview}
-              featured
-            />
           </section>
+        ) : (
+          <>
+            {featured && (
+              <section
+                className="brief-featured-section"
+                aria-labelledby="featured-title"
+              >
+                <div className="brief-featured-heading">
+                  <h2 id="featured-title">Featured article of the week</h2>
+                  <span>Week of {dateLabel(`${selectedWeek}T12:00:00Z`)}</span>
+                </div>
+                <BriefCard
+                  story={featured}
+                  current={overrides[featured.id] || depth}
+                  onAdvance={() => advance(featured.id)}
+                  preview={preview}
+                  featured
+                />
+              </section>
+            )}
+            <div className="brief-list">
+              {filtered.map((story, index) => (
+                <BriefCard
+                  key={story.id}
+                  story={story}
+                  current={overrides[story.id] || depth}
+                  onAdvance={() => advance(story.id)}
+                  preview={preview}
+                  index={index}
+                />
+              ))}
+            </div>
+            {!filtered.length && !featured && (
+              <div className="empty-state">
+                <h3>
+                  {edition.length
+                    ? "No stories in this category."
+                    : "No published stories for this edition."}
+                </h3>
+                <p>
+                  {edition.length
+                    ? "Try another category to keep reading."
+                    : "Choose another date, or check back after the next editorial review."}
+                </p>
+              </div>
+            )}
+            <div className="brief-digest-bar">
+              <span className="keyboard-hint">
+                <kbd>j</kbd> / <kbd>k</kbd> move <span>·</span> <kbd>space</kbd> go
+                deeper
+              </span>
+              <button
+                className="button secondary"
+                disabled={!edition.length || preview}
+                onClick={copyDigest}
+              >
+                {copied ? <Check size={16} /> : <Copy size={16} />}
+                {copied
+                  ? "Copied"
+                  : date === today
+                    ? "Copy today’s one-liners"
+                    : "Copy this edition’s one-liners"}
+              </button>
+              <span className="sr-only" role="status">
+                {copied
+                  ? "The entire edition’s one-liners and link were copied."
+                  : ""}
+              </span>
+            </div>
+            {copyFallback && (
+              <label className="copy-fallback">
+                Clipboard unavailable. Select and copy the briefing below.
+                <textarea
+                  readOnly
+                  value={copyFallback}
+                  onFocus={(e) => e.target.select()}
+                />
+              </label>
+            )}
+          </>
         )}
-        <div className="brief-list">
-          {filtered.map((story, index) => (
-            <BriefCard
-              key={story.id}
-              story={story}
-              current={overrides[story.id] || depth}
-              onAdvance={() => advance(story.id)}
-              preview={preview}
-              index={index}
-            />
-          ))}
-        </div>
-        {!filtered.length && !featured && (
-          <div className="empty-state">
-            <h3>
-              {edition.length
-                ? "No stories in this category."
-                : "No published stories for this edition."}
-            </h3>
-            <p>
-              {edition.length
-                ? "Try another category to keep reading."
-                : "Choose another date, or check back after the next editorial review."}
-            </p>
-          </div>
-        )}
-        <div className="brief-digest-bar">
-          <span className="keyboard-hint">
-            <kbd>j</kbd> / <kbd>k</kbd> move <span>·</span> <kbd>space</kbd> go
-            deeper
-          </span>
-          <button
-            className="button secondary"
-            disabled={!edition.length || preview}
-            onClick={copyDigest}
-          >
-            {copied ? <Check size={16} /> : <Copy size={16} />}
-            {copied
-              ? "Copied"
-              : date === today
-                ? "Copy today’s one-liners"
-                : "Copy this edition’s one-liners"}
-          </button>
-          <span className="sr-only" role="status">
-            {copied
-              ? "The entire edition’s one-liners and link were copied."
-              : ""}
-          </span>
-        </div>
-        {copyFallback && (
-          <label className="copy-fallback">
-            Clipboard unavailable. Select and copy the briefing below.
-            <textarea
-              readOnly
-              value={copyFallback}
-              onFocus={(e) => e.target.select()}
-            />
-          </label>
+        {catchingUp && (
+          <p className="keyboard-hint catch-up-keyboard-hint">
+            <kbd>j</kbd> / <kbd>k</kbd> move <span>·</span> <kbd>space</kbd> go deeper
+          </p>
         )}
         <p className="source-note">
-          {preview
+          {catchingUp
+            ? "AI assisted. Editor reviewed. These are new among available approved stories; source dates stay visible."
+            : preview
             ? "Unpublished layout preview. Source checking and approval are required before publication."
             : "AI assisted. Editor reviewed. Source dates stay visible; each version stands on its own. The digest includes every story in the selected edition."}
         </p>

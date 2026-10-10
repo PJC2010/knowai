@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   READER_MEMORY_KEY,
+  catchUpStories,
   beginVisit,
   browserStorage,
   clearMemory,
@@ -66,6 +67,18 @@ test("newStoryIds compares instants across ISO formats", () => {
   const stories = [{ id: "a", published_at: "2026-10-04T09:00:00+00:00" }];
   assert.equal(newStoryIds(stories, "2026-10-04T08:59:59.999Z").size, 1);
   assert.equal(newStoryIds(stories, "2026-10-04T09:00:00.000Z").size, 0);
+});
+test("catchUpStories spans editions, newest first, excludes boundary and duplicates, and is empty on first visit", () => {
+  const stories = [
+    { id: "a", edition_date: "2026-10-01", published_at: "2026-10-01T00:00:00Z" },
+    { id: "b", edition_date: "2026-10-05", published_at: "2026-10-05T00:00:00+00:00" },
+    { id: "c", edition_date: "2026-10-03", published_at: "2026-10-03T00:00:00Z" },
+    { id: "edge", edition_date: "2026-10-02", published_at: "2026-10-02T00:00:00Z" },
+    { id: "invalid", edition_date: "2026-10-06", published_at: "not-a-date" },
+    { id: "b", edition_date: "2026-10-05", published_at: "2026-10-05T00:00:00+00:00" },
+  ];
+  assert.deepEqual(catchUpStories(stories, "2026-10-02T00:00:00Z").map((x) => x.id), ["b", "c"]);
+  assert.deepEqual(catchUpStories(stories, null), []);
 });
 test("storage helpers never throw and load the fallback when nothing is stored", () => {
   const throwing = { getItem() { throw new Error("denied"); }, setItem() { throw new Error("denied"); },

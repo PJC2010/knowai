@@ -29,6 +29,12 @@ The H/R prefix identifies the original plan and task number. Partial tasks have 
 
 During H3, the existing H2 `/learn#term-token` viewport assertion failed 8/10 serial Chromium repetitions without retries. Diagnostics on the fixture-free local production build show the requested hash present while the initial streamed shell has a zero-sized target (`scrollY=0`); after the glossary lays out at y=3640, browser scroll remains at zero even though `scroll-behavior:auto` is applied. This is a product navigation defect, not an assertion to weaken. Supervisor approved a separate, narrow H2 repair commit within H3: Learn page and one Learn-scoped client helper, glossary-specific CSS only if needed, and relevant public/Brief browser tests. Preserve server-side glossary rendering; check the rendered target after streaming without unrelated-hash interception, later scroll stealing, arbitrary waits, or global scroll changes. Verify direct hash arrival 10 times serially without retries and real glossary-link arrival. H3's review package spans the original base through both commits; previous H2 review does not cover the repair. No production rollout is claimed.
 
+## H6 sequence correction (supervisor ruling)
+
+R3a is the reviewed hook-only prerequisite. H6 calls `useReaderMemory(!preview)` once for `previousVisit`; it does not implement R3b's saved depth, New/Read markers or `retention.spec.ts`. R3b remains after H7 and phase review, and must reuse H6's hook instance for both normal and catch-up cards without a second `beginVisit`. H6's passing gate is `npm run typecheck && npm test && npm run test:brief` with existing tests and H6 regressions; the original requirement to pass `retention.spec.ts` applies when R3b creates it.
+
+For real cross-edition browser coverage, H6 may change only the local test fixture server in addition to its listed source/test files: add a fixed POST-only cross-edition scenario updating seeded publication IDs' `edition_date` and `published_at` via parameterized SQL. Reset leaves the baseline fixture unchanged. This is not an app route, production migration or permission to alter retention scope.
+
 ## Baseline
 
 - Fresh `npm ci` completed in the isolated tree; Node v22.22.3, npm 12.0.2.

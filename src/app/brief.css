@@ -39,6 +39,29 @@
   line-height: 1.25rem;
   color: var(--muted);
 }
+.brief-toolbar-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+.catch-up-button {
+  min-height: 44px;
+  white-space: normal;
+  text-align: center;
+}
+.brief-catch-up h2 {
+  margin: 1.5rem 0 1rem;
+  font-size: 1.5rem;
+  line-height: 2rem;
+}
+.brief-catch-up h2:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+.catch-up-keyboard-hint {
+  margin-top: 1.5rem;
+}
 .depth-toggle {
   display: inline-flex;
   background: var(--canvas);
