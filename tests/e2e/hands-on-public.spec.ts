@@ -55,6 +55,49 @@ test("client-side prompt links update the box without resetting subsequent edits
   await expect(box).toHaveValue("Keep these edits");
 });
 
+test("the cost estimator prices an everyday task without an account", async ({ page }) => {
+  await page.goto("/models");
+  const est = page.getByRole("region", { name: "What would it cost me?" });
+  await est.getByLabel("Task").selectOption({ label: "Summarize an email" });
+  await est.getByLabel("Times per day").fill("");
+  await est.getByLabel("Times per day").blur();
+  await expect(est.getByLabel("Times per day")).toHaveValue("1");
+  const table = est.getByRole("table", { name: "Cheapest paid models for this task" });
+  await expect(table.locator("tbody tr")).toHaveCount(3);
+  await expect(est).toContainText("Real costs vary with length, reasoning, and caching.");
+  const status = await page.locator(".catalog-status").innerText();
+  if (status.includes("Saved catalog")) {
+    await expect(est).toContainText(`saved catalog from ${status.split(" · ")[1]}`);
+  } else {
+    await expect(est).toContainText("live OpenRouter catalog");
+  }
+  const tryIt = table.getByRole("link", { name: /Try it/ }).first();
+  expect(await tryIt.getAttribute("href")).toMatch(/^\/playground\?models=[^&]+&prompt=Summarize/);
+  await page.setViewportSize({ width: 320, height: 800 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+test("selected models show estimates, including free ones and task limits", async ({ page }) => {
+  await page.goto("/models");
+  const est = page.getByRole("region", { name: "What would it cost me?" });
+  await expect(est.getByRole("table", { name: "Your selected models" })).toHaveCount(0);
+  await page.getByRole("textbox", { name: "Search models" }).fill("Ling 3.1 Flash");
+  await page.getByRole("button", { name: "Compare Ling 3.1 Flash" }).click();
+  const selected = est.getByRole("table", { name: "Your selected models" });
+  await expect(selected).toContainText("Ling 3.1 Flash");
+  await expect(selected).toContainText("Free");
+  await page.getByRole("textbox", { name: "Search models" }).fill("Hy-MT2-1.8B");
+  await page.getByRole("button", { name: "Compare Hy-MT2-1.8B" }).click();
+  await est.getByLabel("Task").selectOption("document");
+  await expect(selected.getByRole("row", { name: /Hy-MT2-1.8B/ })).toContainText("Unavailable");
+  await expect(selected.getByRole("row", { name: /Hy-MT2-1.8B/ }).getByRole("link")).toHaveCount(0);
+  await expect(selected.getByRole("link", { name: "Try it with Ling 3.1 Flash" })).toHaveAttribute("href", /prompt=Summarize/);
+  await page.getByRole("button", { name: "Remove Hy-MT2-1.8B" }).click();
+  await page.getByRole("textbox", { name: "Search models" }).fill("Ling 3.1 Flash");
+  await page.getByRole("button", { name: "Remove Ling 3.1 Flash" }).click();
+  await expect(selected).toHaveCount(0);
+});
+
 test("AI 101 without a glossary hash stays at the start", async ({ page }) => {
   await page.goto("/learn");
   await expect(page.getByRole("heading", { name: "A little knowledge. A lot more possibility." })).toBeInViewport();

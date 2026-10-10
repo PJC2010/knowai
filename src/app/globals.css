@@ -1280,6 +1280,132 @@ a:hover > .story-top > svg {
   text-overflow: ellipsis;
 }
 
+/* Everyday-task estimates sit alongside the catalog, not inside model cards. */
+.cost-estimator {
+  margin: 4rem 0 2rem;
+  padding: 2rem;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+}
+.cost-estimator h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.75rem;
+  line-height: 2.25rem;
+}
+.cost-estimator > p {
+  max-width: 70ch;
+  color: var(--muted);
+}
+.estimate-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin: 2rem 0;
+}
+.estimate-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+  font-size: 0.875rem;
+}
+.estimate-controls select,
+.estimate-controls input {
+  min-height: 2.75rem;
+  max-width: 100%;
+  padding: 0.5rem 0.75rem;
+  color: var(--ink);
+  background: var(--canvas);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+.estimate-controls input {
+  width: 9rem;
+}
+.estimate-table {
+  width: 100%;
+  margin: 1.5rem 0 2rem;
+  border-collapse: collapse;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+.estimate-table caption {
+  margin-bottom: 0.75rem;
+  text-align: left;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+.estimate-table th,
+.estimate-table td {
+  padding: 0.875rem 0.75rem;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+.estimate-table tbody th {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.estimate-table td:last-child {
+  color: var(--muted);
+}
+.estimate-table a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+.estimate-table a:hover {
+  color: var(--ink);
+}
+.estimate-empty {
+  padding: 1.5rem 0;
+}
+.cost-estimator .estimate-free-note,
+.cost-estimator .estimate-disclaimer {
+  margin-top: 1.5rem;
+  font-size: 0.875rem;
+  line-height: 1.5rem;
+}
+@media (max-width: 47.999rem) {
+  .cost-estimator {
+    padding: 1.5rem;
+  }
+  .estimate-controls label,
+  .estimate-controls select {
+    width: 100%;
+  }
+  .estimate-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+  .estimate-table tbody,
+  .estimate-table tr,
+  .estimate-table th,
+  .estimate-table td {
+    display: block;
+  }
+  .estimate-table tr {
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .estimate-table th,
+  .estimate-table td {
+    padding: 0.25rem 0;
+    border: 0;
+  }
+  .estimate-table td:not(:last-child)::before {
+    content: attr(data-label) ": ";
+    color: var(--muted);
+  }
+}
+
 /* A working surface for comparing real model responses. */
 .playground-heading {
   display: grid;
