@@ -1,4 +1,9 @@
 import { test, expect } from "@playwright/test";
+import { createRequire } from "node:module";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { register } from "tsx/cjs/api";
+import type { Model, ModelsData } from "../../src/lib/types";
 
 const linkedPromptNotice =
   "Prompt loaded from a link. Read it first; nothing is sent until you start the comparison.";
@@ -96,6 +101,24 @@ test("selected models show estimates, including free ones and task limits", asyn
   await page.getByRole("textbox", { name: "Search models" }).fill("Ling 3.1 Flash");
   await page.getByRole("button", { name: "Remove Ling 3.1 Flash" }).click();
   await expect(selected).toHaveCount(0);
+});
+
+test("saved catalog with no eligible paid models labels its source and empty result", () => {
+  // The page's server fetch is not interceptable with page.route; render the real
+  // estimator with controlled catalog props instead of relying on ambient data.
+  const unregister = register();
+  const { CostEstimator } = createRequire(import.meta.url)("../../src/components/cost-estimator.tsx") as typeof import("../../src/components/cost-estimator");
+  unregister();
+  const shortModel: Model = {
+    id: "short/model", name: "Small window", provider: "short", description: "",
+    contextLength: 100, maxOutput: 50, inputPrice: 1, outputPrice: 2,
+    modalities: ["text"], created: 0,
+  };
+  const data: ModelsData = { models: [shortModel], fetchedAt: "2026-10-03T15:52:04.019Z", fallback: true };
+  const html = renderToStaticMarkup(createElement(CostEstimator, { data, selected: [] }));
+  expect(html).toContain("saved catalog from Oct 3, 2026");
+  expect(html).toContain("No paid models in this catalog have listed prices and enough token capacity for this task.");
+  expect(html).not.toContain("<caption>Cheapest paid models for this task</caption>");
 });
 
 test("AI 101 without a glossary hash stays at the start", async ({ page }) => {
