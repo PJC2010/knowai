@@ -225,7 +225,7 @@ git commit -m "feat(glossary): explain jargon inline in stories and list it in A
   - `promptFromParams(params: Pick<URLSearchParams, "get">): string`
   - `playgroundHref(options: { models?: string[]; prompt?: string }): string`. Returns `/playground` plus `models` (comma-joined) and `prompt` query params, omitting empty ones.
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 Unit:
 ```ts
@@ -261,21 +261,21 @@ test("a prompt link pre-fills but never sends", async ({ page }) => {
 ```
 (If the prompt textarea has an accessible name, use `getByRole("textbox", { name: … })` instead of `.first()`.)
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `npx tsx --test tests/playground-link.test.ts`, then `npm run build && npx playwright test tests/e2e/hands-on-public.spec.ts`
 Expected: unit FAILS (module missing); e2e FAILS (empty textarea).
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Write `src/lib/playground-link.ts`. In `Playground`, initialize `prompt` with `useState(() => promptFromParams(params))` and a `fromLink` flag. Render the notice as `<p className="notice">` above the prompt box while `fromLink` is true. Don't add any auto-run path.
 
-- [ ] **Step 4: Run to verify pass**
+- [x] **Step 4: Run to verify pass**
 
 Run: `npm test && npm run build && npx playwright test tests/e2e`
 Expected: all pass, including the existing `site.spec.ts` comparison and `models=` tests.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/playground-link.ts src/components/playground.tsx tests/playground-link.test.ts tests/e2e/hands-on-public.spec.ts

@@ -77,6 +77,14 @@ export default function PrivacyPage() {
             the information they receive under their own policies.
           </p>
           <p>
+            A shared Playground link can include a prompt in its URL. That
+            prompt can appear in your browser history and in hosting request
+            logs, and anyone you share the link with can read it. Opening a
+            prompt link only fills the prompt box; it does not send a model
+            request until you start the comparison. Do not put confidential
+            information in a shared prompt URL.
+          </p>
+          <p>
             knowai keeps the current prompt and comparison results in page
             memory, without a saved conversation history. Review{" "}
             <a
@@ -96,7 +104,8 @@ export default function PrivacyPage() {
             The app does not include analytics trackers, advertising trackers,
             or tracking cookies. Its server fetches and caches public news feeds
             and model listings; those caches do not contain your playground
-            prompts or API key.
+            prompts or API key. Shared prompt URLs can still appear in hosting
+            request logs as described above.
           </p>
           <p>
             The hosting service may keep normal request logs, including IP

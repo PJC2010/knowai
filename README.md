@@ -42,7 +42,7 @@ The charcoal interface follows the [Redesign Existing Projects skill](https://gi
 
 - **Legacy Brief (before activation):** RSS news from OpenAI, Google AI, Hugging Face, and TechCrunch; category filtering, source links, source publication dates, and incremental loading. Promotional TechCrunch event offers are filtered. Some known articles have source-checked editorial summaries. Publisher and community attribution is retained.
 - **Model Library:** live OpenRouter text-model catalog, provider/search/free-model filters, price sorting, full model details, and selection of up to three models to compare. Batch models and automatic routers are excluded from direct model comparison.
-- **Playground:** select one to three models, send an identical prompt concurrently, compare responses, copy an answer, and inspect tokens, elapsed time, and each request's cost. Supports partial failures, cancellation, timeouts, missing-cost estimates, output-limit warnings, and billed responses with no visible text.
+- **Playground:** select one to three models, send an identical prompt concurrently, compare responses, copy an answer, and inspect tokens, elapsed time, and each request's cost. Supports partial failures, cancellation, timeouts, missing-cost estimates, output-limit warnings, and billed responses with no visible text. `/playground?prompt=…` pre-fills a capped, plain-text prompt alongside optional `models=` selections; it never starts a comparison automatically.
 - **AI 101:** six plain-language guides covering LLMs, prompts, tokens, context windows, model selection, and API keys.
 - **OpenRouter setup:** account connection through OAuth with S256 PKCE/state verification, or an existing key validated with OpenRouter. Direct links to buy usage credits and create keys. Creating a key is free; credits fund usage.
 
@@ -50,7 +50,7 @@ The charcoal interface follows the [Redesign Existing Projects skill](https://gi
 
 The key lives only in React memory. Refreshing the page, closing it, or disconnecting removes the key from knowai. Client-side navigation retains the connection. knowai does not store a user's key, prompts, responses, or comparison history in a database or browser storage.
 
-Model requests and key validation travel directly from the browser to `https://openrouter.ai`. Prompts go to OpenRouter and the selected providers. Temporary OAuth verifier/state information is stored in session storage for the redirect and removed during the callback; API keys are never stored there. Callback parameters are removed from the address bar.
+Model requests and key validation travel directly from the browser to `https://openrouter.ai`. Prompts go to OpenRouter and the selected providers only when you start a comparison. A shared prompt URL is not secret: its prompt can be visible in browser history, hosting request logs, and to anyone with the link. Do not put confidential information in a shared prompt URL. Temporary OAuth verifier/state information is stored in session storage for the redirect and removed during the callback; API keys are never stored there. Callback parameters are removed from the address bar.
 
 The playground does not sell keys, process payments, mark up usage, or use a shared server key. Purchases occur on OpenRouter. A connected key can have its own spending cap; this is not the user's account balance, so knowai does not display it as a balance.
 
