@@ -451,7 +451,7 @@ git commit -m "feat(subscribe): show a visible RSS subscribe card on the Brief a
 
 ### Task 6: Story pages as entry points
 
-**Checkpoint (2026-10-10): PAUSED AT USER REQUEST.** R5 and its prerequisites have been reviewed; R6 code and test-harness repair are locally committed but R6 is not independently reviewed. Leave the task boxes unchecked until resumption/review. See `docs/superpowers/plans/2026-10-10-reader-features-handoff.md`.
+**Historical checkpoint (2026-10-10):** R5 and its prerequisites were reviewed; R6 code and test-harness repair were committed before a user-requested pause. On resumption, independent source-only R6 review approved `9b44ab2..e2999f9` with no findings (see ignored `R6-resumed-review.md`). Its 187 unit / 46 Brief passes are historical checkpoint results, not fresh review tests. See `docs/superpowers/plans/2026-10-10-reader-features-handoff.md`.
 
 **Files:**
 - Create: `src/components/mark-story-read.tsx`
@@ -465,7 +465,7 @@ git commit -m "feat(subscribe): show a visible RSS subscribe card on the Brief a
   - `safeRelatedStories(current: BriefStory, load: () => Promise<BriefStory[]>, limit?: number): Promise<BriefStory[]>`. Returns `[]` when `load` rejects.
   - `MarkStoryRead({ id }: { id: string }): null` (client). Calls `update(m => markRead(m, id))` once, after memory arrives.
 
-- [ ] **Step 1: Write failing unit tests** in `tests/brief.test.ts`:
+- [x] **Step 1: Write failing unit tests** in `tests/brief.test.ts`:
 
 ```ts
 const mk = (id: string, category: NewsCategory, published_at: string) => ({ ...base, id, slug: id, category, published_at }) as BriefStory;
@@ -501,14 +501,14 @@ test("story pages lead to more reading, subscription, and the Brief", async ({ p
 });
 ```
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `npm test` then `npm run test:brief`
 Expected: unit tests FAIL (`relatedStories` not exported); the e2e test FAILS ("Keep reading" missing).
 
-- [ ] **Step 3: Implement** `relatedStories` and `safeRelatedStories` in `src/lib/brief.ts`, and `MarkStoryRead`.
+- [x] **Step 3: Implement** `relatedStories` and `safeRelatedStories` in `src/lib/brief.ts`, and `MarkStoryRead`.
 
-- [ ] **Step 4: Update the story page**
+- [x] **Step 4: Update the story page**
 
 After the `#full` section, add:
 - `<MarkStoryRead id={story.id} />`.
@@ -518,12 +518,12 @@ After the `#full` section, add:
 
 Get `related` with `await safeRelatedStories(story, getPublishedStories)`. Style `.story-more` items with the `.brief-next a` surface treatment, as a single column below 760px.
 
-- [ ] **Step 5: Run to verify pass**
+- [x] **Step 5: Run to verify pass** (historical checkpoint: 187 unit, 46 Brief; not rerun by the source-only R6 reviewer)
 
 Run: `npm run typecheck && npm test && npm run test:brief`
 Expected: PASS, including the existing `brief.spec.ts` permanent-page and `media-feature.spec.ts` story-page tests.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit** (product `bc390a2`, approved test-only fixture repair `c392846`, checkpoint `e2999f9`)
 
 ```bash
 git add src/lib/brief.ts src/components/mark-story-read.tsx "src/app/brief/[slug]/page.tsx" src/app/brief.css tests/brief.test.ts tests/brief-e2e/retention.spec.ts
@@ -539,18 +539,18 @@ git commit -m "feat(story): add Keep reading, subscribe, and Brief links to stor
 
 **Interfaces:** none.
 
-- [ ] **Step 1: Update docs**
+- [x] **Step 1: Update docs**
 
 - README "What works": add a bullet **Returning readers:** on-device depth memory, New/Read markers, first-visit welcome, story-page Keep reading, and visible RSS subscribe card. It must say that nothing leaves the browser.
 - README credentials paragraph: the sentence "does not store … in a database or browser storage" stays true for keys, prompts and responses. Add one sentence naming `knowai-reader` and linking to Privacy.
 - `docs/roadmap.md`: add "R11. Returning-reader experience — implemented locally; rollout pending" with checked items per task, and an unchecked release gate: "verify on the deployed site after the Brief rollout (R01 gate)".
 
-- [ ] **Step 2: Run the full validation**
+- [x] **Step 2: Run the full validation** (fresh R7: 187 unit/database, 46 Brief fixture, 26 public browser tests; normal build passed after fixture build; seven pre-existing Brief stream-close messages)
 
 Run: `npm run typecheck && npm test && npm run test:brief && npm run build && npx playwright test`
 Expected: all unit/db tests pass, all Brief fixture tests pass, the production build succeeds, and all public e2e tests pass.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit** (local docs/bookkeeping commit; R7 independent acceptance remains pending)
 
 ```bash
 git add README.md docs/roadmap.md

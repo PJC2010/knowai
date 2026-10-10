@@ -95,6 +95,14 @@ RSS satisfies the analysis’s first “email **or** RSS” milestone. Email is 
 - [ ] After production verification, submit the sitemap in the site owner's search console; crawlability does not guarantee indexing or traffic.
 - [ ] Agree on privacy-respecting measures of returning readers, feed adoption, and useful Playground comparisons before adding analytics.
 
+### R11. Returning-reader experience — implemented locally; rollout pending
+- [x] Store non-identifying reading state under `knowai-reader` on this device; disclose its fields and provide a clear control in Privacy.
+- [x] Remember reading depth unless a valid URL depth takes precedence; mark individual stories New/Read and offer Catch me up for new stories among available approved publications.
+- [x] Explain the three depths with a first-visit welcome strip.
+- [x] Add story-page Keep reading links (up to three other published stories), a visible RSS subscribe card on reader/story/legacy pages, and a link back to today's Brief.
+- [x] Verify locally with reader-memory, story-page, browser and full phase gates; no production rollout claimed.
+- [ ] **Release gate:** verify on the deployed site after the Brief rollout (R01 gate).
+
 ### R12. Headline to hands-on — implemented locally; rollout pending
 - [x] Plain-English glossary in Brief stories and AI 101, with no editor-preview annotations.
 - [x] Safe `?prompt=` Playground links that pre-fill editable text without automatic model requests.

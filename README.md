@@ -40,6 +40,7 @@ The charcoal interface follows the [Redesign Existing Projects skill](https://gi
 - **Plain-English glossary:** inline definitions in Brief stories and a 19-term AI 101 glossary make jargon easier to understand; glossary controls do not appear in editor previews.
 - **Ask AI models about this story:** story pages and Deep Brief cards link to the Playground with an editable story prompt. Readers choose models and decide whether to run it.
 - **Catch me up:** returning Brief readers can see new stories among the available approved stories across editions since their previous visit. It uses on-device reader memory; it is not an exhaustive lifetime archive.
+- **Returning readers:** on-device reading depth memory, New/Read story markers, a first-visit welcome, story-page Keep reading links, and a visible Follow The Brief RSS subscribe card help readers return. Only the reader-memory fields stay on this device; nothing in that reading memory leaves the browser. Other site activity and shared prompt URLs are subject to the disclosures below and in [Privacy](/privacy).
 - **Private editorial desk:** `/editor` uses Supabase email sign-in and an editor allowlist. Source-grounded OpenRouter drafts, four importable starter drafts, evidence checks, revision history, and explicit human approval. Daily cron and manual refresh share deduplication, a worker lease, and a daily attempt cap. See [setup, workflow, and validation](docs/editorial.md).
 - **Story images and weekly features:** editors preview the article's main image, choose no image, or upload a JPEG/PNG/WebP replacement before review and publication. A published article can lead The Brief for a selected Monday–Sunday UTC week, with one featured article per week.
 
@@ -53,7 +54,7 @@ These reading, linking, and estimating features add no automatic model request o
 
 ## Credentials and billing
 
-The key lives only in React memory. Refreshing the page, closing it, or disconnecting removes the key from knowai. Client-side navigation retains the connection. knowai does not store a user's key, prompts, responses, or comparison history in a database or browser storage.
+The key lives only in React memory. Refreshing the page, closing it, or disconnecting removes the key from knowai. Client-side navigation retains the connection. knowai does not store a user's key, prompts, responses, or comparison history in a database or browser storage. On-device reading preferences and history are stored separately under `knowai-reader`; see [Privacy](/privacy) for the fields and how to clear them.
 
 Model requests and key validation travel directly from the browser to `https://openrouter.ai`. Prompts go to OpenRouter and the selected providers only when you start a comparison. A shared prompt URL is not secret: its prompt can be visible in browser history, hosting request logs, and to anyone with the link. Do not put confidential information in a shared prompt URL. Temporary OAuth verifier/state information is stored in session storage for the redirect and removed during the callback; API keys are never stored there. Callback parameters are removed from the address bar.
 

@@ -1,6 +1,10 @@
 # Reader features: pause/checkpoint handoff — 2026-10-10
 
-**PAUSED AT USER REQUEST; do not auto-advance.** This is a local checkpoint, **not** independent R6 acceptance or production rollout. Do not restart the old H1→R5 workflow or recreate its reviewed prerequisites.
+**Resumed status (after the historical checkpoint below):** User resumed execution. Independent R6 source-only review of `9b44ab243cb5346a35d500a2cad1cb5214ff0bf4..e2999f9b2d2f96756c43024918eac786fdc52a3a` approved with no findings (`.superpowers/sdd/2026-10-09-reader-retention/R6-resumed-review.md`). The 187 unit / 46 Brief passing counts below are **historical checkpoint evidence**, not fresh reviewer tests. R7 ran separate, fresh local gates: typecheck passed, 187 unit/database passed, 46 Brief fixture browser passed, a normal production build without fixture configuration passed, and 26 public browser passed. The passing Brief run logged seven previously observed Next.js `The destination stream closed early` errors (cause not established). Ignored R7 logs are under `.superpowers/sdd/2026-10-09-reader-retention/logs/R7-{typecheck,unit,brief,build,public}.log`. No new product/test implementation was done; R7 independent acceptance and production rollout remain pending.
+
+## Historical pause/checkpoint (preserved)
+
+**PAUSED AT USER REQUEST; do not auto-advance.** This was a local checkpoint, **not** independent R6 acceptance or production rollout at the time. Do not restart the old H1→R5 workflow or recreate its reviewed prerequisites.
 
 ## Location and exact scope
 
