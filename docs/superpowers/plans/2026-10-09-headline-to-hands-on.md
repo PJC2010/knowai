@@ -294,7 +294,7 @@ git commit -m "feat(playground): accept shareable prompt links without auto-runn
 - Consumes: `playgroundHref`, `promptFromParams` (Task 3).
 - Produces: `storyPrompt(story: Pick<BriefStory, "one_liner" | "short_version" | "source_name">): string`, returning the spec's template exactly.
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 Unit (`playground-link.test.ts`):
 ```ts
@@ -322,21 +322,21 @@ test("a story can be taken straight into the Playground", async ({ page }) => {
 });
 ```
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `npm test`, then `npm run test:brief`
 Expected: the new unit tests FAIL (`storyPrompt` not exported; no link in markup); the Brief e2e test FAILS.
 
-- [ ] **Step 3: Implement `storyPrompt` and both placements**
+- [x] **Step 3: Implement `storyPrompt` and both placements**
 
 Each placement renders `<a className="button secondary" href={playgroundHref({ prompt: storyPrompt(story) })}>` (use `Link` on the story page, `small-link` style in cards) with a `<p className="ask-help">` holding the helper text. Cards skip it when `preview`.
 
-- [ ] **Step 4: Run to verify pass**
+- [x] **Step 4: Run to verify pass**
 
 Run: `npm run typecheck && npm test && npm run test:brief`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/playground-link.ts src/components/brief-feed.tsx "src/app/brief/[slug]/page.tsx" src/app/brief.css tests/playground-link.test.ts tests/brief-reader.test.ts tests/brief-e2e/hands-on.spec.ts

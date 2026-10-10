@@ -7,6 +7,7 @@ import { siteUrl } from "@/lib/site-url";
 import { StoryImage } from "@/components/story-image";
 import { GlossaryText } from "@/components/glossary-text";
 import { annotateSections } from "@/lib/glossary";
+import { playgroundHref, storyPrompt } from "@/lib/playground-link";
 
 export const revalidate = 300;
 export async function generateMetadata({
@@ -136,6 +137,12 @@ export default async function StoryPage({
         >
           Read the {story.source_name} original ↗
         </a>
+        <Link className="button secondary ask-story-link" href={playgroundHref({ prompt: storyPrompt(story) })}>
+          Ask AI models about this story
+        </Link>
+        <p className="ask-help">
+          Opens the Playground with this story as a prompt. You choose the models and decide whether to run it.
+        </p>
       </section>
     </article>
   );

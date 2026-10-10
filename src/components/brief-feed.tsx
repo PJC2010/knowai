@@ -15,6 +15,7 @@ import { dateLabel } from "@/lib/format";
 import { StoryImage } from "./story-image";
 import { GlossaryText } from "./glossary-text";
 import { annotateSections, glossary } from "@/lib/glossary";
+import { playgroundHref, storyPrompt } from "@/lib/playground-link";
 
 export function BriefFeed({
   stories,
@@ -447,6 +448,16 @@ function BriefCard({
                 Read the {story.source_name} original{" "}
                 <ArrowUpRight size={16} />
               </a>
+              {!preview && (
+                <>
+                  <a className="small-link ask-story-link" href={playgroundHref({ prompt: storyPrompt(story) })}>
+                    Ask AI models about this story
+                  </a>
+                  <p className="ask-help">
+                    Opens the Playground with this story as a prompt. You choose the models and decide whether to run it.
+                  </p>
+                </>
+              )}
             </section>
             <div className="brief-card-actions">
               <button className="small-link" onClick={onAdvance}>

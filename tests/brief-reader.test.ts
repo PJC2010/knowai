@@ -65,6 +65,24 @@ test("story copy gets glossary terms but one-liners and previews do not", () => 
   assert.doesNotMatch(preview, /glossary-term|glossary-pop/);
 });
 
+test("ask link appears in deep cards but not in preview", () => {
+  const deep = renderToStaticMarkup(createElement(BriefFeed, {
+    stories: [story], initialDate: "2026-10-02", initialDepth: "deep",
+  }));
+  const { document } = parseHTML(deep);
+  const link = document.querySelector('.brief-full a[href^="/playground?prompt="]');
+  assert.equal(link?.textContent?.trim(), "Ask AI models about this story");
+  assert.equal(link?.previousElementSibling?.textContent?.trim(), "Read the Example publisher original");
+  assert.equal(link?.nextElementSibling?.textContent?.trim(), "Opens the Playground with this story as a prompt. You choose the models and decide whether to run it.");
+  const url = new URL(link?.getAttribute("href") || "", "http://x");
+  assert.match(url.searchParams.get("prompt") || "", /A source-backed weekly selection\. The short version of the selected article\./);
+
+  const preview = renderToStaticMarkup(createElement(BriefFeed, {
+    stories: [story], initialDate: "2026-10-02", initialDepth: "deep", preview: true,
+  }));
+  assert.doesNotMatch(preview, /Ask AI models about this story|\/playground\?prompt=/);
+});
+
 test("the weekly feature appears once and retains the selected article image", () => {
   const html = render([story], "2026-10-02");
   assert.equal((html.match(/class="brief-card brief-featured"/g) || []).length, 1);

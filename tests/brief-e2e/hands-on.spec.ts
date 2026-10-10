@@ -5,6 +5,14 @@ test.beforeEach(async ({ request }) => {
   await request.post("http://127.0.0.1:4310/_fixture/reset");
 });
 
+test("a story can be taken straight into the Playground", async ({ page }) => {
+  await page.goto(`/brief/${starters[0].slug}`);
+  await expect(page.getByText("Opens the Playground with this story as a prompt. You choose the models and decide whether to run it.")).toBeVisible();
+  await page.getByRole("link", { name: "Ask AI models about this story" }).click();
+  await expect(page).toHaveURL(/\/playground\?prompt=/);
+  await expect(page.getByRole("textbox").first()).toHaveValue(new RegExp(starters[0].content.oneLiner.slice(0, 30).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+});
+
 test("glossary term explains itself and links to AI 101", async ({ page }) => {
   await page.goto(`/brief/${starters[1].slug}`);
   const term = page.locator("#short .glossary-term", { hasText: "training data" });
