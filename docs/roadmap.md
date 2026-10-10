@@ -65,7 +65,8 @@ RSS satisfies the analysis’s first “email **or** RSS” milestone. Email is 
 ### R06. Beginner prompt packs — pending expansion
 - [x] Basic example prompts and side-by-side comparisons with reported/estimated cost labels.
 - [ ] Add themed packs for everyday explanation, writing, and first coding tasks; each supplies editable prompts, not automatic execution.
-- [ ] Deep-link to a pack/prompt; explain what to compare, preserve explicit run/charge consent, and test mobile and keyboard flows.
+- [x] Deep-link to a prompt via `?prompt=`: pre-fill editable plain text without automatic comparison; public browser flow verified locally.
+- [ ] Deep-link to themed packs when packs exist; explain what to compare and preserve explicit run/charge consent.
 
 ### R07. Weekly comparison posts — pending
 - [ ] Define repeatable editorial methodology: same prompt/settings, exact model IDs/date, reported vs estimated cost, and explicit limitations.
@@ -94,10 +95,26 @@ RSS satisfies the analysis’s first “email **or** RSS” milestone. Email is 
 - [ ] After production verification, submit the sitemap in the site owner's search console; crawlability does not guarantee indexing or traffic.
 - [ ] Agree on privacy-respecting measures of returning readers, feed adoption, and useful Playground comparisons before adding analytics.
 
+### R12. Headline to hands-on — implemented locally; rollout pending
+- [x] Plain-English glossary in Brief stories and AI 101, with no editor-preview annotations.
+- [x] Safe `?prompt=` Playground links that pre-fill editable text without automatic model requests.
+- [x] “Ask AI models about this story” links in story pages and Deep Brief cards.
+- [x] “What would it cost me?” everyday-task estimates in the Model Library, labeled as estimates.
+- [x] Cross-edition Catch me up for new stories among available approved publications, using on-device visit memory.
+- [x] Local documentation and phase-gate verification; no production rollout claimed.
+- [ ] **Release gate:** verify the reader experience with real approved stories and catalog data after separately authorized deployment; no production publishing or paid calls authorized here.
+
+Later ideas (not part of R12; each needs a separate decision):
+- [ ] **Receipts:** decide editorial handling and quotation rights before exposing public claim-level source excerpts; evidence remains private.
+- [ ] **Who should care:** decide audience value and factual-review rules before adding audience chips (see R05).
+- [ ] **Model changelog / price watch:** decide snapshot storage and cron job before tracking daily catalog diffs.
+- [ ] **Editor-picked Try it models:** decide migration and editor UI before launch-story recommendations.
+
 ## Current work and verification
 
-- Working branch: `feat/brief-rss-roadmap`, based on merged PR #4.
-- Current implementation: **R02, RSS subscription**. R01's remaining item is a production/editorial approval gate, not missing page code.
+- Local branch: `feat/headline-to-hands-on`, based on the story-images work; R12 is implemented locally, not rolled out. R01's remaining item is a production/editorial approval gate, not missing page code.
+- R12 local phase gate: 181 unit/database tests, 37 Brief fixture browser tests, 23 public browser tests, TypeScript check, and production build passed. Four existing Next.js “destination stream closed early” messages appeared in the Brief fixture run without failing tests; their cause is not established here.
+- The R02 verification notes below describe the earlier RSS implementation, not a new live check for R12.
 - No commitment to rebuild completed features or implement the entire roadmap in this change.
 - Local verification completed **2026-10-05**: 122 unit/database tests, TypeScript checking, production builds with the reader flag both enabled and disabled, 27 editorial/reader browser tests, and 12 public-site browser tests passed. Mobile RSS discovery, keyboard focus, touch-target size, and overflow checks passed.
 - The history-restore blocker was traced to corruption during the first edit, before save/restore, while the editor was hydrating. Draft fields now remain read-only until their client handlers are ready. A delayed-JavaScript regression failed before the fix; it and the strengthened history test then passed 20 repeated runs. History storage/restoration and publication rules were not changed.

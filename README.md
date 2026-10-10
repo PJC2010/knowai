@@ -37,14 +37,19 @@ The charcoal interface follows the [Redesign Existing Projects skill](https://gi
 ## What works
 
 - **Three-depth Brief:** Quick scan, Normal, and Deep reading modes; inline story expansion; keyboard navigation; dated, copyable editions; and permanent story pages with all three tiers in server-rendered HTML. Activation waits for backend configuration and a first approved story.
+- **Plain-English glossary:** inline definitions in Brief stories and a 19-term AI 101 glossary make jargon easier to understand; glossary controls do not appear in editor previews.
+- **Ask AI models about this story:** story pages and Deep Brief cards link to the Playground with an editable story prompt. Readers choose models and decide whether to run it.
+- **Catch me up:** returning Brief readers can see new stories among the available approved stories across editions since their previous visit. It uses on-device reader memory; it is not an exhaustive lifetime archive.
 - **Private editorial desk:** `/editor` uses Supabase email sign-in and an editor allowlist. Source-grounded OpenRouter drafts, four importable starter drafts, evidence checks, revision history, and explicit human approval. Daily cron and manual refresh share deduplication, a worker lease, and a daily attempt cap. See [setup, workflow, and validation](docs/editorial.md).
 - **Story images and weekly features:** editors preview the article's main image, choose no image, or upload a JPEG/PNG/WebP replacement before review and publication. A published article can lead The Brief for a selected Monday–Sunday UTC week, with one featured article per week.
 
 - **Legacy Brief (before activation):** RSS news from OpenAI, Google AI, Hugging Face, and TechCrunch; category filtering, source links, source publication dates, and incremental loading. Promotional TechCrunch event offers are filtered. Some known articles have source-checked editorial summaries. Publisher and community attribution is retained.
-- **Model Library:** live OpenRouter text-model catalog, provider/search/free-model filters, price sorting, full model details, and selection of up to three models to compare. Batch models and automatic routers are excluded from direct model comparison.
-- **Playground:** select one to three models, send an identical prompt concurrently, compare responses, copy an answer, and inspect tokens, elapsed time, and each request's cost. Supports partial failures, cancellation, timeouts, missing-cost estimates, output-limit warnings, and billed responses with no visible text. `/playground?prompt=…` pre-fills a capped, plain-text prompt alongside optional `models=` selections; it never starts a comparison automatically.
+- **Model Library:** live OpenRouter text-model catalog, provider/search/free-model filters, price sorting, full model details, and selection of up to three models to compare. Batch models and automatic routers are excluded from direct model comparison. The “What would it cost me?” estimator prices everyday tasks from catalog list prices, with stated limits and no account required.
+- **Playground:** select one to three models, send an identical prompt concurrently, compare responses, copy an answer, and inspect tokens, elapsed time, and each request's cost. Supports partial failures, cancellation, timeouts, missing-cost estimates, output-limit warnings, and billed responses with no visible text. Prompt links (`/playground?prompt=…`) pre-fill a capped, plain-text prompt alongside optional `models=` selections; they never start a comparison automatically.
 - **AI 101:** six plain-language guides covering LLMs, prompts, tokens, context windows, model selection, and API keys.
 - **OpenRouter setup:** account connection through OAuth with S256 PKCE/state verification, or an existing key validated with OpenRouter. Direct links to buy usage credits and create keys. Creating a key is free; credits fund usage.
+
+These reading, linking, and estimating features add no automatic model request or server-side reader profile. Catch me up stores visit information in on-device browser storage; shared prompt links put prompt text in the URL, where it may be retained in browser history or hosting logs. Catalog/news loading and a reader-initiated Playground comparison still make their usual requests.
 
 ## Credentials and billing
 
