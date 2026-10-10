@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { glossary } from "@/lib/glossary";
+import { GlossaryHashPosition } from "@/components/glossary-hash-position";
 import {
   BookOpen,
   MessageCircle,
@@ -133,6 +135,18 @@ export default function LearnPage() {
           ))}
         </div>
       </div>
+      <section aria-labelledby="glossary-title" id="glossary" className="learn-glossary">
+        <GlossaryHashPosition />
+        <h2 id="glossary-title">Glossary</h2>
+        <dl>
+          {glossary.map(({ id, term, definition }) => (
+            <div key={id}>
+              <dt id={`term-${id}`}>{term}</dt>
+              <dd>{definition}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
       <section className="playground-banner" data-reveal>
         <div className="banner-icon">
           <FlaskConical size={30} />

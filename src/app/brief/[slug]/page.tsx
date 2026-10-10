@@ -1,10 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getPublishedStory } from "@/lib/editorial/published";
+import { getPublishedStories, getPublishedStory } from "@/lib/editorial/published";
+import { safeRelatedStories } from "@/lib/brief";
+import { MarkStoryRead } from "@/components/mark-story-read";
+import { SubscribeCard } from "@/components/subscribe-card";
 import { dateLabel } from "@/lib/format";
 import { siteUrl } from "@/lib/site-url";
 import { StoryImage } from "@/components/story-image";
+import { GlossaryText } from "@/components/glossary-text";
+import { annotateSections } from "@/lib/glossary";
+import { playgroundHref, storyPrompt } from "@/lib/playground-link";
 
 export const revalidate = 300;
 export async function generateMetadata({
@@ -45,6 +51,12 @@ export default async function StoryPage({
 }) {
   const story = await getPublishedStory((await params).slug);
   if (!story) notFound();
+  const related = await safeRelatedStories(story, getPublishedStories);
+  const [short, ...remaining] = annotateSections([
+    story.short_version,
+    ...story.whole_picture,
+    story.why_it_matters,
+  ]);
   const structured = {
     "@context": "https://schema.org",
     "@type": "NewsArticle",
@@ -101,16 +113,25 @@ export default async function StoryPage({
       </nav>
       <section id="short" className="story-section">
         <h2>The short version</h2>
-        <p>{story.short_version}</p>
+        <p>
+          <GlossaryText segments={short} scope={story.slug} />
+        </p>
       </section>
       <section id="full" className="story-section">
         <h2>The whole picture</h2>
-        {story.whole_picture.map((paragraph, i) => (
-          <p key={i}>{paragraph}</p>
+        {story.whole_picture.map((_, i) => (
+          <p key={i}>
+            <GlossaryText segments={remaining[i]} scope={story.slug} />
+          </p>
         ))}
         <aside className="brief-matters">
           <strong>Why it matters</strong>
-          <p>{story.why_it_matters}</p>
+          <p>
+            <GlossaryText
+              segments={remaining[story.whole_picture.length]}
+              scope={story.slug}
+            />
+          </p>
         </aside>
         <a
           className="button secondary"
@@ -120,7 +141,31 @@ export default async function StoryPage({
         >
           Read the {story.source_name} original ↗
         </a>
+        <Link className="button secondary ask-story-link" href={playgroundHref({ prompt: storyPrompt(story) })}>
+          Ask AI models about this story
+        </Link>
+        <p className="ask-help">
+          Opens the Playground with this story as a prompt. You choose the models and decide whether to run it.
+        </p>
       </section>
+      <MarkStoryRead id={story.id} />
+      {related.length > 0 && (
+        <section className="story-more" aria-labelledby="keep-reading-title">
+          <h2 id="keep-reading-title">Keep reading</h2>
+          <div className="story-more-list">
+            {related.map((item) => (
+              <Link key={item.id} href={`/brief/${item.slug}`}>
+                <span className="category-tag">{item.category}</span>
+                <strong>{item.one_liner}</strong>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+      <SubscribeCard feedUrl={new URL("/feed.xml", siteUrl()).href} />
+      <p className="story-about">
+        knowai explains AI news in plain English, at the depth you choose. <Link href="/">Read today’s Brief</Link>
+      </p>
     </article>
   );
 }

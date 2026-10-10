@@ -16,6 +16,7 @@ import {
 import type { NewsData, Model, Article } from "@/lib/types";
 import { dateLabel, formatPrice, formatContext } from "@/lib/format";
 import { ModelMark, providerName } from "./model-mark";
+import { SubscribeCard } from "./subscribe-card";
 
 function ArticleMeta({ article }: { article: Article }) {
   return (
@@ -35,10 +36,12 @@ export function Newsroom({
   data,
   models,
   catalogInfo,
+  feedUrl,
 }: {
   data: NewsData;
   models: Model[];
   catalogInfo: { fallback: boolean; fetchedAt: string };
+  feedUrl: string;
 }) {
   const [filter, setFilter] = useState("All updates");
   const [limit, setLimit] = useState(6);
@@ -241,6 +244,7 @@ export function Newsroom({
           </button>
         )}
       </section>
+      <SubscribeCard feedUrl={feedUrl} />
       <section className="playground-banner" data-reveal>
         <div className="banner-icon">
           <FlaskConical size={30} />

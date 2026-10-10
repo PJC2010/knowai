@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { parseHTML } from "linkedom";
 import { BriefFeed } from "../src/components/brief-feed";
 import type { BriefStory } from "../src/lib/brief";
 
@@ -33,6 +34,82 @@ function render(stories: BriefStory[], date: string, category = "All updates") {
     }),
   );
 }
+
+test("story copy gets glossary terms but one-liners and previews do not", () => {
+  const s = {
+    ...story,
+    one_liner: "An LLM headline.",
+    short_version: "A new LLM arrives with open weights.",
+    whole_picture: ["Its training data includes many tokens."],
+    why_it_matters: "The API is available to developers.",
+  };
+  const html = render([s], "2026-10-02");
+  assert.match(html, /class="glossary-term"[^>]*>LLM</);
+  assert.match(html, /popoverTarget="featured-story-term-llm"/);
+  assert.match(html, /href="\/learn#term-llm"/);
+  assert.doesNotMatch(html, /role="dialog"/);
+  const { document } = parseHTML(html);
+  assert.equal(document.querySelector(".brief-headline")?.textContent?.trim(), "An LLM headline.");
+  assert.equal(document.querySelector(".brief-headline .glossary-term"), null);
+  for (const [selector, expected] of [
+    [".brief-short p", s.short_version],
+    [".brief-full > p", s.whole_picture[0]],
+    [".brief-matters p", s.why_it_matters],
+  ]) {
+    const paragraph = document.querySelector(selector);
+    paragraph?.querySelectorAll(".glossary-pop").forEach((pop) => pop.remove());
+    assert.equal(paragraph?.textContent, expected);
+    assert.ok(paragraph?.querySelector(".glossary-term"), `${selector} has an inline term`);
+  }
+  const preview = renderToStaticMarkup(createElement(BriefFeed, { stories: [s], initialDate: "2026-10-02", preview: true }));
+  assert.doesNotMatch(preview, /glossary-term|glossary-pop/);
+});
+
+test("ask link appears in deep cards but not in preview", () => {
+  const deep = renderToStaticMarkup(createElement(BriefFeed, {
+    stories: [story], initialDate: "2026-10-02", initialDepth: "deep",
+  }));
+  const { document } = parseHTML(deep);
+  const link = document.querySelector('.brief-full a[href^="/playground?prompt="]');
+  assert.equal(link?.textContent?.trim(), "Ask AI models about this story");
+  assert.equal(link?.previousElementSibling?.textContent?.trim(), "Read the Example publisher original");
+  assert.equal(link?.nextElementSibling?.textContent?.trim(), "Opens the Playground with this story as a prompt. You choose the models and decide whether to run it.");
+  const url = new URL(link?.getAttribute("href") || "", "http://x");
+  assert.match(url.searchParams.get("prompt") || "", /A source-backed weekly selection\. The short version of the selected article\./);
+
+  const preview = renderToStaticMarkup(createElement(BriefFeed, {
+    stories: [story], initialDate: "2026-10-02", initialDepth: "deep", preview: true,
+  }));
+  assert.doesNotMatch(preview, /Ask AI models about this story|\/playground\?prompt=/);
+});
+
+test("server markup contains no reader-memory markers", () => {
+  const { document } = parseHTML(render([story], "2026-10-02"));
+  assert.equal(document.querySelector(".brief-new, .brief-read"), null);
+  assert.doesNotMatch(document.querySelector(".brief-toolbar p")?.textContent ?? "", /new since your last visit/);
+});
+
+test("server markup has no welcome strip", () => {
+  assert.doesNotMatch(render([story], "2026-10-02"), /Welcome to The Brief|New here\?/);
+  const preview = renderToStaticMarkup(createElement(BriefFeed, { stories: [story], initialDate: "2026-10-02", preview: true }));
+  assert.doesNotMatch(preview, /Welcome to The Brief|New here\?/);
+});
+
+test("the subscribe card renders with the canonical feed and never in preview", () => {
+  const props = { stories: [story], initialDate: "2026-10-02", feedUrl: "https://knowai.example/feed.xml" };
+  const html = renderToStaticMarkup(createElement(BriefFeed, props));
+  assert.match(html, /Follow The Brief/);
+  assert.match(html, /href="\/feed.xml"/);
+  assert.match(html, /New stories arrive in your feed reader after editorial review\. No account or email needed\./);
+  const { document } = parseHTML(html);
+  const card = document.querySelector(".subscribe-card");
+  assert.equal(card?.previousElementSibling?.className, "brief-reading");
+  assert.equal(card?.nextElementSibling?.className, "brief-next");
+  assert.equal(card?.querySelector('a[href="/feed.xml"]')?.getAttribute("type"), "application/rss+xml");
+  assert.match(card?.textContent ?? "", /New to RSS\?.*A feed reader collects new posts from sites you follow\. Paste the feed address into any reader app\./);
+  assert.doesNotMatch(render([story], "2026-10-02"), /Follow The Brief/);
+  assert.doesNotMatch(renderToStaticMarkup(createElement(BriefFeed, { ...props, preview: true })), /Follow The Brief/);
+});
 
 test("the weekly feature appears once and retains the selected article image", () => {
   const html = render([story], "2026-10-02");

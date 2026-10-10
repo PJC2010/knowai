@@ -1,6 +1,7 @@
 import { test, expect, type BrowserContext, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import starters from "../../src/data/editorial-starters.json" with { type: "json" };
+import { refreshFixtureBriefCache } from "../helpers/refresh-fixture-brief-cache";
 
 const fixture = "http://127.0.0.1:4310";
 const draftId = "10000000-0000-4000-8000-000000000001";
@@ -42,8 +43,9 @@ async function publication(page: Page, index = 0) {
   return (await response.json()).stories.find((story: { slug: string }) => story.slug === starters[index].slug);
 }
 
-test.beforeEach(async ({ request, context }) => {
-  await request.post(`${fixture}/_fixture/reset`);
+test.beforeEach(async ({ request, context, browser }) => {
+  expect((await request.post(`${fixture}/_fixture/reset`)).ok()).toBe(true);
+  await refreshFixtureBriefCache(browser, request);
   await login(context);
   await context.route("https://images.example.test/**", route =>
     route.fulfill({ path: "public/images/editorial.png", contentType: "image/png" }));

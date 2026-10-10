@@ -18,6 +18,7 @@ import type { Model, ModelsData } from "@/lib/types";
 import { featuredModels } from "@/lib/models-client";
 import { formatPrice, formatContext, dateLabel } from "@/lib/format";
 import { ModelMark, providerName } from "./model-mark";
+import { CostEstimator } from "./cost-estimator";
 
 export function ModelLibrary({ data }: { data: ModelsData }) {
   const params = useSearchParams();
@@ -243,6 +244,7 @@ export function ModelLibrary({ data }: { data: ModelsData }) {
         of a word. Provider routing, caching and context length can affect final
         charges. Descriptions are supplied by model providers via OpenRouter.
       </p>
+      <CostEstimator data={data} selected={selected.flatMap((id) => data.models.filter((model) => model.id === id))} />
       {selected.length > 0 && (
         <div className="compare-tray">
           <div>
