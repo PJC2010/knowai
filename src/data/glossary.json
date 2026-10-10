@@ -1,0 +1,116 @@
+[
+  {
+    "id": "llm",
+    "term": "LLM",
+    "aliases": ["LLM", "LLMs", "large language model", "large language models"],
+    "definition": "An AI system trained on huge amounts of text to predict and write language. Chat assistants are built on them."
+  },
+  {
+    "id": "token",
+    "term": "Token",
+    "aliases": ["token", "tokens"],
+    "definition": "A small piece of text, often part of a word, that models read and write. Usage is priced per token; one English token is about four characters."
+  },
+  {
+    "id": "context-window",
+    "term": "Context window",
+    "aliases": ["context window", "context windows", "context length"],
+    "definition": "How much text a model can consider at once, counted in tokens. It includes your instructions, documents, and the reply."
+  },
+  {
+    "id": "parameters",
+    "term": "Parameters",
+    "aliases": ["parameters"],
+    "definition": "The internal numbers a model learns in training. More parameters often means more capability and higher running costs, not always better answers."
+  },
+  {
+    "id": "fine-tuning",
+    "term": "Fine-tuning",
+    "aliases": ["fine-tuning", "fine-tuned", "fine-tune"],
+    "definition": "Extra training on a smaller, focused set of examples so a model gets better at one style or task."
+  },
+  {
+    "id": "inference",
+    "term": "Inference",
+    "aliases": ["inference"],
+    "definition": "Running a trained model to get an answer. Inference is what you pay for each time a model responds."
+  },
+  {
+    "id": "open-weight",
+    "term": "Open-weight model",
+    "aliases": ["open-weight", "open weights", "open-weights"],
+    "definition": "A model whose trained parameters are published, so anyone can download and run it, subject to its license."
+  },
+  {
+    "id": "benchmark",
+    "term": "Benchmark",
+    "aliases": ["benchmark", "benchmarks"],
+    "definition": "A standard test for comparing models. Scores help, but they rarely match the exact task you care about."
+  },
+  {
+    "id": "leaderboard",
+    "term": "Leaderboard",
+    "aliases": ["leaderboard", "leaderboards"],
+    "definition": "A ranked list of models by test score. Check what the test measures before trusting the order."
+  },
+  {
+    "id": "hallucination",
+    "term": "Hallucination",
+    "aliases": ["hallucination", "hallucinations", "hallucinate", "hallucinates"],
+    "definition": "When a model states something false with confidence. Check important claims against the original source."
+  },
+  {
+    "id": "multimodal",
+    "term": "Multimodal",
+    "aliases": ["multimodal"],
+    "definition": "Able to work with more than one kind of input or output, such as text, images, audio, or video."
+  },
+  {
+    "id": "agent",
+    "term": "AI agent",
+    "aliases": ["AI agent", "AI agents", "agentic"],
+    "definition": "An AI system that takes several steps on its own, such as searching or using tools, to finish a task you set."
+  },
+  {
+    "id": "reasoning-model",
+    "term": "Reasoning model",
+    "aliases": ["reasoning model", "reasoning models"],
+    "definition": "A model that works through a problem in steps before answering. Often better at math and logic, but slower and pricier."
+  },
+  {
+    "id": "api",
+    "term": "API",
+    "aliases": ["API", "APIs"],
+    "definition": "A way for software to talk to a service. Developers use a model’s API to send prompts from their own apps."
+  },
+  {
+    "id": "api-key",
+    "term": "API key",
+    "aliases": ["API key", "API keys"],
+    "definition": "A secret code that lets an app use a service on your account. Treat it like a password."
+  },
+  {
+    "id": "rag",
+    "term": "RAG",
+    "aliases": ["RAG", "retrieval-augmented generation"],
+    "definition": "A model first looks up relevant documents, then answers using them. It helps keep answers tied to specific sources."
+  },
+  {
+    "id": "training-data",
+    "term": "Training data",
+    "aliases": ["training data"],
+    "definition": "The material a model learned from. It shapes what the model knows and where its blind spots are."
+  },
+  {
+    "id": "data-center",
+    "term": "Data center",
+    "aliases": ["data center", "data centers", "data centre", "data centres"],
+    "definition": "A building full of computers. AI data centers need large amounts of power, water, and cooling."
+  },
+  {
+    "id": "gpu",
+    "term": "GPU",
+    "aliases": ["GPU", "GPUs"],
+    "definition": "A chip that does many calculations at once. AI models are trained and run on huge numbers of them."
+  }
+]
