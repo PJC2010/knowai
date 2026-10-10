@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getPublishedStory } from "@/lib/editorial/published";
+import { getPublishedStories, getPublishedStory } from "@/lib/editorial/published";
+import { safeRelatedStories } from "@/lib/brief";
+import { MarkStoryRead } from "@/components/mark-story-read";
+import { SubscribeCard } from "@/components/subscribe-card";
 import { dateLabel } from "@/lib/format";
 import { siteUrl } from "@/lib/site-url";
 import { StoryImage } from "@/components/story-image";
@@ -48,6 +51,7 @@ export default async function StoryPage({
 }) {
   const story = await getPublishedStory((await params).slug);
   if (!story) notFound();
+  const related = await safeRelatedStories(story, getPublishedStories);
   const [short, ...remaining] = annotateSections([
     story.short_version,
     ...story.whole_picture,
@@ -144,6 +148,24 @@ export default async function StoryPage({
           Opens the Playground with this story as a prompt. You choose the models and decide whether to run it.
         </p>
       </section>
+      <MarkStoryRead id={story.id} />
+      {related.length > 0 && (
+        <section className="story-more" aria-labelledby="keep-reading-title">
+          <h2 id="keep-reading-title">Keep reading</h2>
+          <div className="story-more-list">
+            {related.map((item) => (
+              <Link key={item.id} href={`/brief/${item.slug}`}>
+                <span className="category-tag">{item.category}</span>
+                <strong>{item.one_liner}</strong>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+      <SubscribeCard feedUrl={new URL("/feed.xml", siteUrl()).href} />
+      <p className="story-about">
+        knowai explains AI news in plain English, at the depth you choose. <Link href="/">Read today’s Brief</Link>
+      </p>
     </article>
   );
 }

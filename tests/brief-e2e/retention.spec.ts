@@ -1,7 +1,32 @@
 import { test, expect } from "@playwright/test";
+import starters from "../../src/data/editorial-starters.json" with { type: "json" };
 
 test.beforeEach(async ({ request }) => {
   await request.post("http://127.0.0.1:4310/_fixture/reset");
+});
+
+test("story pages lead to more reading, subscription, and the Brief", async ({ page, request }, testInfo) => {
+  const slug = starters[0].slug;
+  const html = await (await request.get(`/brief/${slug}`)).text();
+  expect(html).toContain("Keep reading");
+  await page.goto(`/brief/${slug}`);
+  const more = page.getByRole("region", { name: "Keep reading" }).getByRole("link");
+  await expect(more).toHaveCount(3);
+  for (const link of await more.all()) {
+    expect(await link.getAttribute("href")).not.toBe(`/brief/${slug}`);
+    await expect(link.locator(".category-tag")).toBeVisible();
+  }
+  await expect(page.getByRole("region", { name: "Follow The Brief" })).toBeVisible();
+  await expect(page.getByText("knowai explains AI news in plain English, at the depth you choose.")).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath("story-continuation-desktop.png"), fullPage: true });
+  await page.setViewportSize({ width: 320, height: 800 });
+  await page.screenshot({ path: testInfo.outputPath("story-continuation-mobile.png"), fullPage: true });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  for (const link of await more.all()) expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  await page.getByRole("link", { name: "Read today’s Brief" }).click();
+  await expect(page).toHaveURL("/");
+  const card = page.locator(".brief-card", { has: page.locator(`#${slug}-title`) });
+  await expect(card.locator(".brief-read")).toHaveText("Read");
 });
 
 test("first visit explains the three depths and Got it dismisses for good", async ({ page }, testInfo) => {
