@@ -451,6 +451,8 @@ git commit -m "feat(subscribe): show a visible RSS subscribe card on the Brief a
 
 ### Task 6: Story pages as entry points
 
+**Checkpoint (2026-10-10): PAUSED AT USER REQUEST.** R5 and its prerequisites have been reviewed; R6 code and test-harness repair are locally committed but R6 is not independently reviewed. Leave the task boxes unchecked until resumption/review. See `docs/superpowers/plans/2026-10-10-reader-features-handoff.md`.
+
 **Files:**
 - Create: `src/components/mark-story-read.tsx`
 - Modify: `src/lib/brief.ts`, `src/app/brief/[slug]/page.tsx`, `src/app/brief.css`

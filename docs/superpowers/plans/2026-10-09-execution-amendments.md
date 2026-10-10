@@ -35,6 +35,12 @@ R3a is the reviewed hook-only prerequisite. H6 calls `useReaderMemory(!preview)`
 
 For real cross-edition browser coverage, H6 may change only the local test fixture server in addition to its listed source/test files: add a fixed POST-only cross-edition scenario updating seeded publication IDs' `edition_date` and `published_at` via parameterized SQL. Reset leaves the baseline fixture unchanged. This is not an app route, production migration or permission to alter retention scope.
 
+## R6 fixture-cache correction and user checkpoint (supervisor rulings)
+
+The local fixture's direct SQL reset/cross-edition updates do not invalidate Next's `unstable_cache` for published stories. R6 was permitted to repair **tests only** in `tests/brief-e2e/hands-on.spec.ts`, `tests/brief-e2e/media-feature.spec.ts`, and `tests/helpers/refresh-fixture-brief-cache.ts`: invoke the existing authenticated editor feature/unfeature action in a separate fabricated-editor context, await completion, ensure `featured_week` is restored to null, and guard to exact local fixture/app origins. For cross-edition coverage warm the default page first, refresh after scenario mutation, assert both date groups, reset in `finally` and refresh again. Fixture stories tied on `published_at` have no defined secondary order: test exact membership within each newer/older date group, not exact order within a tied group. Media-feature refreshes only **after fixture reset**; ordinary publication must itself invalidate the cache. No production route, cache change, auth bypass, sleeps, retries or test-order workaround. Original post-publish failure was observed once but not independently isolated; do not claim its cause proved by the reset reproduction.
+
+User requested a tracked checkpoint and pause before independent R6 review or R7. See `docs/superpowers/plans/2026-10-10-reader-features-handoff.md`; do not auto-advance.
+
 ## Baseline
 
 - Fresh `npm ci` completed in the isolated tree; Node v22.22.3, npm 12.0.2.
