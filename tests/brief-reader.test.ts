@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { parseHTML } from "linkedom";
 import { BriefFeed } from "../src/components/brief-feed";
 import type { BriefStory } from "../src/lib/brief";
 
@@ -33,6 +34,36 @@ function render(stories: BriefStory[], date: string, category = "All updates") {
     }),
   );
 }
+
+test("story copy gets glossary terms but one-liners and previews do not", () => {
+  const s = {
+    ...story,
+    one_liner: "An LLM headline.",
+    short_version: "A new LLM arrives with open weights.",
+    whole_picture: ["Its training data includes many tokens."],
+    why_it_matters: "The API is available to developers.",
+  };
+  const html = render([s], "2026-10-02");
+  assert.match(html, /class="glossary-term"[^>]*>LLM</);
+  assert.match(html, /popoverTarget="featured-story-term-llm"/);
+  assert.match(html, /href="\/learn#term-llm"/);
+  assert.doesNotMatch(html, /role="dialog"/);
+  const { document } = parseHTML(html);
+  assert.equal(document.querySelector(".brief-headline")?.textContent?.trim(), "An LLM headline.");
+  assert.equal(document.querySelector(".brief-headline .glossary-term"), null);
+  for (const [selector, expected] of [
+    [".brief-short p", s.short_version],
+    [".brief-full > p", s.whole_picture[0]],
+    [".brief-matters p", s.why_it_matters],
+  ]) {
+    const paragraph = document.querySelector(selector);
+    paragraph?.querySelectorAll(".glossary-pop").forEach((pop) => pop.remove());
+    assert.equal(paragraph?.textContent, expected);
+    assert.ok(paragraph?.querySelector(".glossary-term"), `${selector} has an inline term`);
+  }
+  const preview = renderToStaticMarkup(createElement(BriefFeed, { stories: [s], initialDate: "2026-10-02", preview: true }));
+  assert.doesNotMatch(preview, /glossary-term|glossary-pop/);
+});
 
 test("the weekly feature appears once and retains the selected article image", () => {
   const html = render([story], "2026-10-02");

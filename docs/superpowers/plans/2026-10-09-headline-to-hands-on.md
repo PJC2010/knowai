@@ -51,7 +51,7 @@ Thin components render them in existing surfaces: Brief cards, story pages, AI 1
   - `annotateSections(sections: string[], terms?: GlossaryTerm[]): GlossarySegment[][]` (default `glossary`). Annotates the first occurrence of each term across all sections in order. Joining each section's segment texts reproduces the input exactly.
   - `termById(id: string): GlossaryTerm | undefined`
 
-- [ ] **Step 1: Write the failing tests** in `tests/glossary.test.ts`:
+- [x] **Step 1: Write the failing tests** in `tests/glossary.test.ts`:
 
 ```ts
 const found = (s: GlossarySegment[]) => s.filter((x) => typeof x !== "string").map((x: any) => [x.termId, x.text]);
@@ -91,14 +91,14 @@ test("no terms returns the text unchanged", () => {
 });
 ```
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `npx tsx --test tests/glossary.test.ts`
 Expected: FAIL. `src/lib/glossary` cannot be resolved.
 
-- [ ] **Step 3: Create `src/data/glossary.json`** with exactly the 19 rows of the spec's glossary table (`id`, `term`, `aliases` array, `definition`).
+- [x] **Step 3: Create `src/data/glossary.json`** with exactly the 19 rows of the spec's glossary table (`id`, `term`, `aliases` array, `definition`).
 
-- [ ] **Step 4: Implement `src/lib/glossary.ts`**
+- [x] **Step 4: Implement `src/lib/glossary.ts`**
 
 Build one case-insensitive regex from all aliases, escaped and sorted longest first. Wrap it in `(?<![\p{L}\p{N}])(…)(?![\p{L}\p{N}])` with the `giu` flags. For each match:
 - find the alias it equals case-insensitively
@@ -107,12 +107,12 @@ Build one case-insensitive regex from all aliases, escaped and sorted longest fi
 
 Keep a `Set` of seen ids across sections.
 
-- [ ] **Step 5: Run to verify pass**
+- [x] **Step 5: Run to verify pass**
 
 Run: `npx tsx --test tests/glossary.test.ts && npm run typecheck`
 Expected: 7 tests pass; no type errors.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/data/glossary.json src/lib/glossary.ts tests/glossary.test.ts
@@ -132,7 +132,7 @@ git commit -m "feat(glossary): add plain-English glossary and term matcher"
 - Consumes: `annotateSections`, `termById`, `glossary`, `GlossarySegment` (Task 1).
 - Produces: `GlossaryText({ segments, scope }: { segments: GlossarySegment[]; scope: string }): JSX.Element`. It renders strings as text and terms as `<button type="button" className="glossary-term" popoverTarget={`${scope}-term-${termId}`}>` plus `<span popover="auto" id=… className="glossary-pop"><strong>{term}</strong> {definition} <a href={`/learn#term-${id}`}>More in the AI 101 glossary</a></span>`. It has no hooks, so it works in server and client components.
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 Unit (`brief-reader.test.ts`):
 ```ts
@@ -183,12 +183,12 @@ test("AI 101 lists every glossary term with an anchor", async ({ page }) => {
 });
 ```
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `npm test`, then `npm run test:brief`, then `npm run build && npx playwright test tests/e2e/hands-on-public.spec.ts`
 Expected: the new unit test FAILS (no `glossary-term`). The two Brief tests FAIL. The AI 101 test FAILS (no Glossary region).
 
-- [ ] **Step 3: Implement `GlossaryText`**, then wire it in
+- [x] **Step 3: Implement `GlossaryText`**, then wire it in
 
 In `BriefCard` and the story page, call `annotateSections([short_version, ...whole_picture, why_it_matters], preview ? [] : glossary)` once per story and pass each section's segments to `GlossaryText` with `scope={story.slug}`.
 
@@ -198,12 +198,12 @@ CSS:
 - `.glossary-term` is inline, inherits font, and has a dotted underline in `--accent`. Give it a 44px minimum hit area via padding plus negative margin, so the line height doesn't change.
 - `.glossary-pop` uses the `.notice` surface with `max-width: min(20rem, 90vw)`.
 
-- [ ] **Step 4: Run to verify pass**
+- [x] **Step 4: Run to verify pass**
 
 Run: `npm run typecheck && npm test && npm run test:brief && npm run build && npx playwright test tests/e2e`
 Expected: all pass, including the existing `brief.spec.ts` keyboard test and `site.spec.ts` mobile fit for `/learn`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/components/glossary-text.tsx src/components/brief-feed.tsx "src/app/brief/[slug]/page.tsx" src/app/learn/page.tsx src/app/brief.css tests/brief-reader.test.ts tests/brief-e2e/hands-on.spec.ts tests/e2e/hands-on-public.spec.ts

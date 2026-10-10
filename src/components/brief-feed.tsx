@@ -13,6 +13,8 @@ import {
 import { depths, digestText, type BriefStory, type Depth } from "@/lib/brief";
 import { dateLabel } from "@/lib/format";
 import { StoryImage } from "./story-image";
+import { GlossaryText } from "./glossary-text";
+import { annotateSections, glossary } from "@/lib/glossary";
 
 export function BriefFeed({
   stories,
@@ -350,6 +352,10 @@ function BriefCard({
   featured?: boolean;
   index?: number;
 }) {
+  const [short, ...remaining] = annotateSections(
+    [story.short_version, ...story.whole_picture, story.why_it_matters],
+    preview ? [] : glossary,
+  );
   return (
     <article
       className={`brief-card${featured ? " brief-featured" : ""}`}
@@ -408,7 +414,9 @@ function BriefCard({
           <div id={`${story.slug}-body`} hidden={current === "quick"}>
             <section id={`${story.slug}-short`} className="brief-short">
               <span className="eyebrow">The short version</span>
-              <p>{story.short_version}</p>
+              <p>
+                <GlossaryText segments={short} scope={story.slug} />
+              </p>
             </section>
             <section
               id={`${story.slug}-full`}
@@ -416,12 +424,19 @@ function BriefCard({
               hidden={current !== "deep"}
             >
               <span className="eyebrow">The whole picture</span>
-              {story.whole_picture.map((paragraph, i) => (
-                <p key={i}>{paragraph}</p>
+              {story.whole_picture.map((_, i) => (
+                <p key={i}>
+                  <GlossaryText segments={remaining[i]} scope={story.slug} />
+                </p>
               ))}
               <aside className="brief-matters">
                 <strong>Why it matters</strong>
-                <p>{story.why_it_matters}</p>
+                <p>
+                  <GlossaryText
+                    segments={remaining[story.whole_picture.length]}
+                    scope={story.slug}
+                  />
+                </p>
               </aside>
               <a
                 className="small-link"
