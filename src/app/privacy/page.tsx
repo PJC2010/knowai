@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ClearReaderMemory } from "@/components/clear-reader-memory";
 
 export const metadata: Metadata = {
   title: "Privacy",
   description:
-    "How knowai handles your OpenRouter key, prompts, browser storage, and public news feeds.",
+    "How knowai handles your OpenRouter key, prompts, reading preferences, browser storage, and public news feeds.",
 };
 
 export default function PrivacyPage() {
@@ -97,6 +98,20 @@ export default function PrivacyPage() {
             and your selected provider’s data policies before sending personal
             or confidential information.
           </p>
+        </section>
+        <section className="legal-section" aria-labelledby="reading-prefs">
+          <h2 id="reading-prefs">Reading preferences on this device</h2>
+          <p>
+            knowai saves the reading depth you choose, when you last visited,
+            which stories you have read, and whether you dismissed the welcome
+            note. This data is kept in this browser’s local storage under
+            <code> knowai-reader</code>. It never leaves your device or reaches
+            knowai’s server.
+          </p>
+          <p>
+            Clearing your browser data or using the button below removes it.
+          </p>
+          <ClearReaderMemory />
         </section>
         <section className="legal-section">
           <h2>Browsing knowai</h2>

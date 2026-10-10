@@ -52,7 +52,7 @@
   - `saveMemory(storage: Storage | null, memory: ReaderMemory): void`
   - `clearMemory(storage: Storage | null): void`
 
-- [ ] **Step 1: Write the failing tests** in `tests/reader-memory.test.ts` (`node:test` + `node:assert/strict`, same style as `tests/brief-reader.test.ts`):
+- [x] **Step 1: Write the failing tests** in `tests/reader-memory.test.ts` (`node:test` + `node:assert/strict`, same style as `tests/brief-reader.test.ts`):
 
 ```ts
 test("parseMemory returns defaults for missing, corrupt, foreign and wrong-version values", () => {
@@ -116,21 +116,21 @@ test("save then load round-trips through a Storage", () => {
 });
 ```
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `npx tsx --test tests/reader-memory.test.ts`
 Expected: FAIL. The module `src/lib/reader-memory` cannot be resolved.
 
-- [ ] **Step 3: Implement `src/lib/reader-memory.ts`**
+- [x] **Step 3: Implement `src/lib/reader-memory.ts`**
 
 Use pure functions only, with no React. Compare dates with `Date.parse`. `beginVisit` writes `now.toISOString()`. A `lastVisit` that doesn't parse counts as "no previous visit". `loadMemory` returns `fallback` (default `emptyMemory()`) when storage is null, when `getItem` throws, or when the key is absent. Otherwise it returns `parseMemory(raw)`. `browserStorage()` wraps `window.localStorage` access in try/catch and returns `null` on the server or when access throws.
 
-- [ ] **Step 4: Run to verify pass**
+- [x] **Step 4: Run to verify pass**
 
 Run: `npx tsx --test tests/reader-memory.test.ts && npm run typecheck`
 Expected: all 8 tests pass; no type errors.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/reader-memory.ts tests/reader-memory.test.ts
@@ -152,7 +152,7 @@ This lands before anything writes storage, so the disclosure ships first.
 - Consumes: `browserStorage`, `clearMemory`, `READER_MEMORY_KEY` (Task 1).
 - Produces: `ClearReaderMemory(): JSX.Element` (client component).
 
-- [ ] **Step 1: Write the failing test** `privacy explains on-device reading memory and clears it`:
+- [x] **Step 1: Write the failing test** `privacy explains on-device reading memory and clears it`:
 
 ```ts
 await page.goto("/privacy");
@@ -164,12 +164,12 @@ await expect(page.getByRole("status")).toHaveText("Reading history cleared.");
 expect(await page.evaluate(() => localStorage.getItem("knowai-reader"))).toBeNull();
 ```
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `npm run build && npx playwright test tests/e2e/retention-public.spec.ts`
 Expected: FAIL. The region "Reading preferences on this device" is not found.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 The section is `<section className="legal-section" aria-labelledby="reading-prefs">` with `<h2 id="reading-prefs">Reading preferences on this device</h2>`. Its copy states:
 - knowai saves the reading depth you choose, when you last visited, which stories you have read, and whether you dismissed the welcome note
@@ -178,12 +178,12 @@ The section is `<section className="legal-section" aria-labelledby="reading-pref
 
 Then render `<ClearReaderMemory />`. The button shows status text in a `role="status"` element that is always rendered and starts empty.
 
-- [ ] **Step 4: Run to verify pass**
+- [x] **Step 4: Run to verify pass**
 
 Run: `npm run build && npx playwright test tests/e2e/retention-public.spec.ts tests/e2e/site.spec.ts`
 Expected: PASS (the existing mobile-fit test in `site.spec.ts` still passes for `/privacy`).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/components/clear-reader-memory.tsx src/app/privacy/page.tsx tests/e2e/retention-public.spec.ts
