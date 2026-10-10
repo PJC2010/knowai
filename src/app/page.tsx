@@ -24,6 +24,7 @@ export default async function Home({
         <BriefFeed
           stories={stories}
           initialDepth={depth}
+          depthFromUrl={typeof query.depth === "string" && depths.includes(query.depth as Depth)}
           initialDate={
             typeof query.date === "string" &&
             /^\d{4}-\d{2}-\d{2}$/.test(query.date)

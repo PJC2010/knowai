@@ -83,6 +83,12 @@ test("ask link appears in deep cards but not in preview", () => {
   assert.doesNotMatch(preview, /Ask AI models about this story|\/playground\?prompt=/);
 });
 
+test("server markup contains no reader-memory markers", () => {
+  const { document } = parseHTML(render([story], "2026-10-02"));
+  assert.equal(document.querySelector(".brief-new, .brief-read"), null);
+  assert.doesNotMatch(document.querySelector(".brief-toolbar p")?.textContent ?? "", /new since your last visit/);
+});
+
 test("the weekly feature appears once and retains the selected article image", () => {
   const html = render([story], "2026-10-02");
   assert.equal((html.match(/class="brief-card brief-featured"/g) || []).length, 1);

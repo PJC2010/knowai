@@ -206,7 +206,7 @@ git commit -m "feat(privacy): disclose on-device reading memory with a clear con
   - `BriefFeed` new prop `depthFromUrl?: boolean` (default `false`).
   - `BriefCard` new prop `marker?: "new" | "read" | null`.
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 In `tests/brief-reader.test.ts` add `server markup contains no reader-memory markers`:
 ```ts
@@ -257,14 +257,14 @@ expect(await page.evaluate(() => localStorage.getItem("knowai-reader"))).toBeNul
 await expect(page.locator(".brief-new, .brief-read")).toHaveCount(0);
 ```
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `npm test && npm run test:brief`
 Expected: unit tests pass. In the Brief suite, `retention.spec.ts` tests fail (depth not remembered; `.brief-new` count 0; `.brief-read` missing). `editor-flow` passes.
 
-- [ ] **Step 3: Implement `useReaderMemory` in `src/components/use-reader-memory.ts`** (`"use client"`), matching the Interfaces block.
+- [x] **Step 3: Implement `useReaderMemory` in `src/components/use-reader-memory.ts`** (`"use client"`), matching the Interfaces block.
 
-- [ ] **Step 4: Wire into `BriefFeed`**
+- [x] **Step 4: Wire into `BriefFeed`**
 
 - Call `useReaderMemory(!preview)`.
 - Apply the remembered depth once, when memory first arrives, only if `!depthFromUrl` and `memory.depth` is set. Use a ref so later updates don't re-apply it.
@@ -276,12 +276,12 @@ Expected: unit tests pass. In the Brief suite, `retention.spec.ts` tests fail (d
 - `page.tsx` passes `depthFromUrl` as `true` exactly when `query.depth` is a valid `Depth`.
 - CSS: `.brief-new` uses the accent color on `--accent-ink`, shaped like `.category-tag`. `.brief-read` uses `--muted` text with no fill.
 
-- [ ] **Step 5: Run to verify pass**
+- [x] **Step 5: Run to verify pass**
 
 Run: `npm run typecheck && npm test && npm run test:brief`
 Expected: all pass, including the existing `brief.spec.ts` "normal is the default…" test. That test starts with fresh storage, so it still gets Normal.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/components/use-reader-memory.ts src/components/brief-feed.tsx src/app/page.tsx src/app/brief.css tests/brief-reader.test.ts tests/brief-e2e/retention.spec.ts tests/brief-e2e/editor-flow.spec.ts

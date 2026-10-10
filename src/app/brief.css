@@ -135,6 +135,20 @@
 .brief-number {
   color: var(--muted);
 }
+.brief-new {
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 600;
+}
+.brief-read {
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
 .brief-source {
   margin-left: auto;
   color: var(--muted);

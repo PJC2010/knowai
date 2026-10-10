@@ -16,7 +16,7 @@ import { StoryImage } from "./story-image";
 import { GlossaryText } from "./glossary-text";
 import { annotateSections, glossary } from "@/lib/glossary";
 import { playgroundHref, storyPrompt } from "@/lib/playground-link";
-import { catchUpStories } from "@/lib/reader-memory";
+import { catchUpStories, markRead, newStoryIds } from "@/lib/reader-memory";
 import { useReaderMemory } from "./use-reader-memory";
 
 export function BriefFeed({
@@ -24,12 +24,14 @@ export function BriefFeed({
   initialDepth = "normal",
   initialDate,
   initialCategory = "All updates",
+  depthFromUrl = false,
   preview = false,
 }: {
   stories: BriefStory[];
   initialDepth?: Depth;
   initialDate?: string;
   initialCategory?: string;
+  depthFromUrl?: boolean;
   preview?: boolean;
 }) {
   const dates = [...new Set(stories.map((s) => s.edition_date))]
@@ -43,12 +45,16 @@ export function BriefFeed({
   const [copyFallback, setCopyFallback] = useState("");
   const [today, setToday] = useState("");
   const [catchingUp, setCatchingUp] = useState(false);
-  const { memory } = useReaderMemory(!preview);
+  const { memory, update } = useReaderMemory(!preview);
+  const appliedDepth = useRef(false);
   const feed = useRef<HTMLElement>(null);
   const catchUpButton = useRef<HTMLButtonElement>(null);
   const catchUpTitle = useRef<HTMLHeadingElement>(null);
   const wasCatchingUp = useRef(false);
   const catchUp = catchUpStories(stories, memory?.previousVisit ?? null);
+  const newIds = memory ? newStoryIds(stories, memory.previousVisit) : new Set<string>();
+  const markerFor = (id: string): "new" | "read" | null =>
+    newIds.has(id) ? "new" : memory?.read.includes(id) ? "read" : null;
   const edition = stories.filter((s) => s.edition_date === date);
   const selectedWeek = editionWeek(date);
   const featured = stories.find(
@@ -63,6 +69,14 @@ export function BriefFeed({
       story.id !== featured?.id &&
       (filter === "All updates" || story.category === filter),
   );
+  const visible = catchingUp ? catchUp : [...(featured ? [featured] : []), ...filtered];
+  const visibleNew = visible.filter((story) => newIds.has(story.id)).length;
+  useEffect(() => {
+    if (memory && !appliedDepth.current) {
+      appliedDepth.current = true;
+      if (!depthFromUrl && memory.depth) setDepth(memory.depth);
+    }
+  }, [memory, depthFromUrl]);
   useEffect(() => {
     setToday(new Date().toISOString().slice(0, 10));
   }, []);
@@ -124,10 +138,9 @@ export function BriefFeed({
   }
   function advance(id: string) {
     const current = overrides[id] || depth;
-    setOverrides((previous) => ({
-      ...previous,
-      [id]: depths[(depths.indexOf(current) + 1) % 3],
-    }));
+    const next = depths[(depths.indexOf(current) + 1) % 3];
+    setOverrides((previous) => ({ ...previous, [id]: next }));
+    if (next === "deep") update((stored) => markRead(stored, id));
   }
   async function copyDigest() {
     const text = digestText(edition, date, window.location.origin);
@@ -182,6 +195,7 @@ export function BriefFeed({
               {catchingUp
                 ? "New among available approved stories since your last visit."
                 : <>{edition.length} {edition.length === 1 ? "story" : "stories"}. Three ways in.</>}
+              {visibleNew > 0 && ` · ${visibleNew} new since your last visit`}
             </p>
           </div>
           <div className="brief-toolbar-actions">
@@ -201,8 +215,10 @@ export function BriefFeed({
                   key={value}
                   aria-pressed={depth === value}
                   onClick={() => {
+                    appliedDepth.current = true;
                     setDepth(value);
                     setOverrides({});
+                    update((stored) => ({ ...stored, depth: value }));
                     updateUrl({ depth: value });
                   }}
                 >
@@ -263,6 +279,7 @@ export function BriefFeed({
                   current={overrides[story.id] || depth}
                   onAdvance={() => advance(story.id)}
                   preview={preview}
+                  marker={markerFor(story.id)}
                   index={index}
                 />
               ))}
@@ -284,6 +301,7 @@ export function BriefFeed({
                   current={overrides[featured.id] || depth}
                   onAdvance={() => advance(featured.id)}
                   preview={preview}
+                  marker={markerFor(featured.id)}
                   featured
                 />
               </section>
@@ -296,6 +314,7 @@ export function BriefFeed({
                   current={overrides[story.id] || depth}
                   onAdvance={() => advance(story.id)}
                   preview={preview}
+                  marker={markerFor(story.id)}
                   index={index}
                 />
               ))}
@@ -396,6 +415,7 @@ function BriefCard({
   current,
   onAdvance,
   preview,
+  marker = null,
   featured = false,
   index = 0,
 }: {
@@ -403,6 +423,7 @@ function BriefCard({
   current: Depth;
   onAdvance: () => void;
   preview: boolean;
+  marker?: "new" | "read" | null;
   featured?: boolean;
   index?: number;
 }) {
@@ -430,6 +451,8 @@ function BriefCard({
           </span>
         )}
         <span className="category-tag">{story.category}</span>
+        {marker === "new" && <span className="brief-new">New</span>}
+        {marker === "read" && <span className="brief-read">Read</span>}
         <span className="brief-source">
           {story.source_name} ·{" "}
           <time dateTime={story.source_published_at}>

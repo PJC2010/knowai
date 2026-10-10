@@ -99,6 +99,8 @@ test('evidence links highlight exact text and edits invalidate final review',asy
   await page.getByRole('tab',{name:'Preview',exact:true}).click();
   await page.getByRole('button',{name:'Deep',exact:true}).click();
   await expect(page.locator('.brief-full')).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem('knowai-reader'))).toBeNull();
+  await expect(page.locator('.brief-new, .brief-read')).toHaveCount(0);
   await page.getByRole('button',{name:'Start final review',exact:true}).click();
   const source=page.getByLabel('I checked the original source and the factual claims.');
   const tiers=page.getByLabel('I reviewed all three standalone versions, including the one-liner’s tone.');
