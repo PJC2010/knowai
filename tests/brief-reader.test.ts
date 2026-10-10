@@ -89,6 +89,12 @@ test("server markup contains no reader-memory markers", () => {
   assert.doesNotMatch(document.querySelector(".brief-toolbar p")?.textContent ?? "", /new since your last visit/);
 });
 
+test("server markup has no welcome strip", () => {
+  assert.doesNotMatch(render([story], "2026-10-02"), /Welcome to The Brief|New here\?/);
+  const preview = renderToStaticMarkup(createElement(BriefFeed, { stories: [story], initialDate: "2026-10-02", preview: true }));
+  assert.doesNotMatch(preview, /Welcome to The Brief|New here\?/);
+});
+
 test("the weekly feature appears once and retains the selected article image", () => {
   const html = render([story], "2026-10-02");
   assert.equal((html.match(/class="brief-card brief-featured"/g) || []).length, 1);

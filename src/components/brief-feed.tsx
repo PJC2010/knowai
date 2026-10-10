@@ -48,6 +48,7 @@ export function BriefFeed({
   const { memory, update } = useReaderMemory(!preview);
   const appliedDepth = useRef(false);
   const feed = useRef<HTMLElement>(null);
+  const depthToggle = useRef<HTMLDivElement>(null);
   const catchUpButton = useRef<HTMLButtonElement>(null);
   const catchUpTitle = useRef<HTMLHeadingElement>(null);
   const wasCatchingUp = useRef(false);
@@ -209,7 +210,7 @@ export function BriefFeed({
                 Back to the briefing
               </button>
             )}
-            <div className="depth-toggle" role="group" aria-label="Reading depth">
+            <div className="depth-toggle" role="group" aria-label="Reading depth" ref={depthToggle}>
               {depths.map((value, i) => (
                 <button
                   key={value}
@@ -268,6 +269,15 @@ export function BriefFeed({
             </select>
           </label>
         </div>}
+        {memory && memory.previousVisit === null && !memory.welcomeDismissed && (
+          <section className="welcome-strip" aria-label="Welcome to The Brief">
+            <p><strong>New here?</strong> Every story comes three ways: a one-liner, the short version, and the whole picture. Pick a depth above, and knowai will remember it on this device.</p>
+            <button className="button secondary" onClick={() => {
+              update((stored) => ({ ...stored, welcomeDismissed: true }));
+              depthToggle.current?.querySelector<HTMLButtonElement>('[aria-pressed="true"]')?.focus();
+            }}>Got it</button>
+          </section>
+        )}
         {catchingUp ? (
           <section className="brief-catch-up" aria-labelledby="catch-up-title">
             <h2 id="catch-up-title" ref={catchUpTitle} tabIndex={-1}>Since your last visit</h2>

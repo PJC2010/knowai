@@ -300,7 +300,7 @@ git commit -m "feat(brief): remember depth and mark new and read stories on this
 - Consumes: `useReaderMemory` (Task 3). The strip shows when `memory && memory.previousVisit === null && !memory.welcomeDismissed`.
 - Produces: nothing new for later tasks.
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 Unit (`brief-reader.test.ts`): `server markup has no welcome strip`, using `assert.doesNotMatch(render([story], "2026-10-02"), /Welcome to The Brief|New here\?/)`.
 
@@ -337,21 +337,21 @@ test("storage that throws behaves as a first visit", async ({ page }) => {
 });
 ```
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `npm run test:brief`
 Expected: the three new tests FAIL (region not found).
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Render `<section className="welcome-strip" aria-label="Welcome to The Brief">` between `.brief-controls` and the featured section. Copy is verbatim: `<strong>New here?</strong> Every story comes three ways: a one-liner, the short version, and the whole picture. Pick a depth above, and knowai will remember it on this device.` The `Got it` button calls `update(m => ({ ...m, welcomeDismissed: true }))`, then focuses the pressed depth button. Hold the toggle group in a ref so focus can move to it. Style it like `.notice`, with a 44px-tall button and wrapping at 320px.
 
-- [ ] **Step 4: Run to verify pass**
+- [x] **Step 4: Run to verify pass**
 
 Run: `npm test && npm run test:brief`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/components/brief-feed.tsx src/app/brief.css tests/brief-reader.test.ts tests/brief-e2e/retention.spec.ts

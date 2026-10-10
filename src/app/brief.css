@@ -94,6 +94,28 @@
   padding: 1.5rem 0;
   flex-wrap: wrap;
 }
+.welcome-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem 1.5rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem 1.5rem;
+  border: 1px solid var(--muted);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+.welcome-strip p {
+  flex: 1 1 28ch;
+  max-width: 75ch;
+}
+.welcome-strip button {
+  min-height: 44px;
+}
 .edition-picker {
   display: flex;
   align-items: center;
