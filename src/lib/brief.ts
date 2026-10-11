@@ -134,9 +134,15 @@ export function normalizeSourceUrl(input: string): string {
     url.username ||
     url.password ||
     (url.port && url.port !== "443") ||
-    !["openai.com", "blog.google", "huggingface.co", "techcrunch.com", "deepmind.google", "research.google", "engineering.fb.com"].includes(
-      url.hostname,
-    )
+    ![
+      "openai.com",
+      "blog.google",
+      "huggingface.co",
+      "techcrunch.com",
+      "deepmind.google",
+      "research.google",
+      "engineering.fb.com",
+    ].includes(url.hostname)
   )
     throw new Error(
       "Only the configured publishers’ HTTPS URLs are supported.",

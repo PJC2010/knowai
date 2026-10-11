@@ -162,6 +162,25 @@ test("source URLs reject credentials, unsafe hosts, ports, and schemes", () => {
   ])
     assert.throws(() => normalizeSourceUrl(url));
 });
+test("all seven editorial publishers retain exact-host validation and URL normalization", () => {
+  for (const host of [
+    "openai.com", "blog.google", "huggingface.co", "techcrunch.com",
+    "deepmind.google", "research.google", "engineering.fb.com",
+  ]) {
+    assert.equal(
+      normalizeSourceUrl(`https://${host.toUpperCase()}:443/story?article=42&utm_source=feed&fbclid=tracking&gclid=tracking#section`),
+      `https://${host}/story?article=42`,
+    );
+    for (const url of [
+      `http://${host}/story`,
+      `https://user:password@${host}/story`,
+      `https://${host}:8443/story`,
+      `https://www.${host}/story`,
+      `https://${host}.evil.example/story`,
+      `https://${host}@evil.example/story`,
+    ]) assert.throws(() => normalizeSourceUrl(url), /configured publishers/, url);
+  }
+});
 test("redirects are checked before fetching and oversized responses are rejected", async () => {
   const original = globalThis.fetch;
   let calls = 0;

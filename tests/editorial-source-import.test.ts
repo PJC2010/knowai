@@ -27,10 +27,30 @@ test('new primary hosts allow original URLs but reject impostors and unknown red
  assert.equal(requests,1);
 });
 
-test('manual import maps newly approved primary hosts to their registered publishers',async(t)=>{
+test('manual import preserves publisher, original date, title, and normalized URL for all seven hosts',async(t)=>{
  t.mock.method(globalThis,'fetch',async()=>new Response('<html><head><meta property="og:title" content="AI research"><meta property="article:published_time" content="2026-10-01T12:30:00Z"></head></html>'));
- for (const [host,name] of [['deepmind.google','Google DeepMind'],['research.google','Google Research'],['engineering.fb.com','Meta Engineering']]) {
-  const result=await source.retrieveImportMetadata(`https://${host}/blog/ai-story/`);
+ for (const [host,name] of [['openai.com','OpenAI'],['blog.google','Google'],['huggingface.co','Hugging Face'],['techcrunch.com','TechCrunch'],['deepmind.google','Google DeepMind'],['research.google','Google Research'],['engineering.fb.com','Meta Engineering']]) {
+  const result=await source.retrieveImportMetadata(`https://${host}/blog/ai-story/?article=42&utm_source=feed#section`);
   assert.equal(result.source_name,name);
+  assert.equal(result.url,`https://${host}/blog/ai-story/?article=42`);
+  assert.equal(result.title,'AI research');
+  assert.equal(result.source_published_at,'2026-10-01T12:30:00.000Z');
+ }
+});
+
+test('new publisher imports validate every redirect hop before fetching it',async(t)=>{
+ for (const host of ['deepmind.google','research.google','engineering.fb.com']) {
+  const first=`https://${host}/story`;
+  const next=`https://${host}/canonical?article=42`;
+  const requests:string[]=[];
+  t.mock.method(globalThis,'fetch',async(input)=>{
+   const url=String(input);requests.push(url);
+   if(url===first)return new Response(null,{status:302,headers:{location:'/canonical?article=42&utm_source=redirect#section'}});
+   if(url===next)return new Response(null,{status:302,headers:{location:`https://${host}.evil.example/private`}});
+   throw new Error('An unapproved URL reached fetch');
+  });
+  await assert.rejects(source.retrieveImportMetadata(first),/configured publishers/);
+  assert.deepEqual(requests,[first,next]);
+  t.mock.restoreAll();
  }
 });
