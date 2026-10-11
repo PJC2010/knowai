@@ -1,7 +1,12 @@
 import { Suspense } from "react";
 import { getModels } from "@/lib/models";
 import { Playground } from "@/components/playground";
-export const metadata = { title: "Model Playground" };
+import { pageMetadata } from "@/lib/page-metadata";
+export const metadata = pageMetadata(
+  "Model Playground — Compare AI answers",
+  "Ask AI models the same question and compare their answers side by side. Connect your own OpenRouter account to run models and see usage costs.",
+  "/playground",
+);
 export const revalidate = 1800;
 export default async function PlaygroundPage() {
   const data = await getModels();

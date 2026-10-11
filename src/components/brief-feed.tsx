@@ -156,6 +156,82 @@ export function BriefFeed({
       setCopyFallback(text);
     }
   }
+  const renderCard = (story: BriefStory, index: number, isFeatured = false) => (
+    <BriefCard
+      key={story.id}
+      story={story}
+      current={overrides[story.id] || depth}
+      onAdvance={() => advance(story.id)}
+      preview={preview}
+      marker={markerFor(story.id)}
+      featured={isFeatured}
+      index={index}
+    />
+  );
+
+  // Empty results still expose controls so readers can recover.
+  const readingOptions = (
+    <div className="brief-reading-options">
+        {!catchingUp && <div className="brief-controls">
+          <div className="filter-tabs" aria-label="Filter news">
+            {["All updates", "Models", "Research", "Industry", "Tools"].map(
+              (category) => (
+                <button
+                  key={category}
+                  aria-pressed={filter === category}
+                  className={filter === category ? "active" : ""}
+                  onClick={() => {
+                    setFilter(category);
+                    updateUrl({ category });
+                  }}
+                >
+                  {category}
+                </button>
+              ),
+            )}
+          </div>
+          <label className="edition-picker">
+            Edition
+            <select
+              aria-label="Briefing edition"
+              value={date}
+              onChange={(e) => {
+                setDate(e.target.value);
+                setCopied(false);
+                setCopyFallback("");
+                setOverrides({});
+                updateUrl({ date: e.target.value });
+              }}
+            >
+              {initialDate && !dates.includes(initialDate) && (
+                <option value={initialDate}>{initialDate}</option>
+              )}
+              {dates.map((value) => (
+                <option key={value}>{value}</option>
+              ))}
+            </select>
+          </label>
+        </div>}
+        {memory && memory.previousVisit === null && !memory.welcomeDismissed && (
+          <section className="welcome-strip" aria-label="Welcome to The Brief">
+            <p><strong>New here?</strong> Every story comes three ways: a one-liner, the short version, and the whole picture. Pick a depth above, and knowai will remember it on this device.</p>
+            <button className="button secondary" onClick={() => {
+              update((stored) => ({ ...stored, welcomeDismissed: true }));
+              depthToggle.current?.querySelector<HTMLButtonElement>('[aria-pressed="true"]')?.focus();
+            }}>Got it</button>
+          </section>
+        )}
+    </div>
+  );
+  const afterFirstStory = (
+    <>
+      {readingOptions}
+      {!preview && feedUrl && <aside className="brief-follow-prompt" aria-label="Keep up with The Brief">
+        <p><strong>Make sense of the next story, too.</strong> Follow The Brief in a reader app.</p>
+        <Link className="small-link" href="/follow">Get The Brief <ArrowUpRight size={16} aria-hidden="true" /></Link>
+      </aside>}
+    </>
+  );
   return (
     <div className="page-container brief-page" data-depth={depth}>
       <div className="edition-line">
@@ -170,15 +246,16 @@ export function BriefFeed({
         </span>
       </div>
       <section className="page-heading brief-hero">
-        <div>
-          <span className="eyebrow">One story. Your depth.</span>
-          <h1>A clearer view of AI.</h1>
+        <h1>AI news everyone can understand.</h1>
+        <div className="brief-hero-context">
+          <p>Every story three ways: one sentence, a short version, or the whole picture.</p>
+          {!preview && <p className="hero-trust">Written with AI, checked by a human editor.</p>}
+          {!preview && <div className="hero-actions">
+            <Link className="button lime" href="/follow">Get The Brief</Link>
+            <a className="quiet-link" href="#brief-title">Read the latest stories</a>
+          </div>}
+          {!preview && <Link className="quiet-link hero-learn" href="/learn">New to AI? Start here <ArrowUpRight size={16} aria-hidden="true" /></Link>}
         </div>
-        <p>
-          Get the point. Understand the stakes. See the whole picture.
-          <br />
-          You choose how much to take in.
-        </p>
       </section>
       {preview && (
         <p className="notice">
@@ -232,70 +309,13 @@ export function BriefFeed({
             </div>
           </div>
         </div>
-        {!catchingUp && <div className="brief-controls">
-          <div className="filter-tabs" aria-label="Filter news">
-            {["All updates", "Models", "Research", "Industry", "Tools"].map(
-              (category) => (
-                <button
-                  key={category}
-                  aria-pressed={filter === category}
-                  className={filter === category ? "active" : ""}
-                  onClick={() => {
-                    setFilter(category);
-                    updateUrl({ category });
-                  }}
-                >
-                  {category}
-                </button>
-              ),
-            )}
-          </div>
-          <label className="edition-picker">
-            Edition
-            <select
-              aria-label="Briefing edition"
-              value={date}
-              onChange={(e) => {
-                setDate(e.target.value);
-                setCopied(false);
-                setCopyFallback("");
-                setOverrides({});
-                updateUrl({ date: e.target.value });
-              }}
-            >
-              {initialDate && !dates.includes(initialDate) && (
-                <option value={initialDate}>{initialDate}</option>
-              )}
-              {dates.map((value) => (
-                <option key={value}>{value}</option>
-              ))}
-            </select>
-          </label>
-        </div>}
-        {memory && memory.previousVisit === null && !memory.welcomeDismissed && (
-          <section className="welcome-strip" aria-label="Welcome to The Brief">
-            <p><strong>New here?</strong> Every story comes three ways: a one-liner, the short version, and the whole picture. Pick a depth above, and knowai will remember it on this device.</p>
-            <button className="button secondary" onClick={() => {
-              update((stored) => ({ ...stored, welcomeDismissed: true }));
-              depthToggle.current?.querySelector<HTMLButtonElement>('[aria-pressed="true"]')?.focus();
-            }}>Got it</button>
-          </section>
-        )}
         {catchingUp ? (
           <section className="brief-catch-up" aria-labelledby="catch-up-title">
             <h2 id="catch-up-title" ref={catchUpTitle} tabIndex={-1}>Since your last visit</h2>
             <div className="brief-list">
-              {catchUp.map((story, index) => (
-                <BriefCard
-                  key={story.id}
-                  story={story}
-                  current={overrides[story.id] || depth}
-                  onAdvance={() => advance(story.id)}
-                  preview={preview}
-                  marker={markerFor(story.id)}
-                  index={index}
-                />
-              ))}
+              {catchUp[0] && renderCard(catchUp[0], 0)}
+              {afterFirstStory}
+              {catchUp.slice(1).map((story, index) => renderCard(story, index + 1))}
             </div>
           </section>
         ) : (
@@ -309,28 +329,17 @@ export function BriefFeed({
                   <h2 id="featured-title">Featured article of the week</h2>
                   <span>Week of {dateLabel(`${selectedWeek}T12:00:00Z`)}</span>
                 </div>
-                <BriefCard
-                  story={featured}
-                  current={overrides[featured.id] || depth}
-                  onAdvance={() => advance(featured.id)}
-                  preview={preview}
-                  marker={markerFor(featured.id)}
-                  featured
-                />
+                {renderCard(featured, 0, true)}
               </section>
             )}
+            {!featured && filtered[0] && (
+              <div className="brief-list">{renderCard(filtered[0], 0)}</div>
+            )}
+            {afterFirstStory}
             <div className="brief-list">
-              {filtered.map((story, index) => (
-                <BriefCard
-                  key={story.id}
-                  story={story}
-                  current={overrides[story.id] || depth}
-                  onAdvance={() => advance(story.id)}
-                  preview={preview}
-                  marker={markerFor(story.id)}
-                  index={index}
-                />
-              ))}
+              {filtered.slice(featured ? 0 : 1).map((story, index) =>
+                renderCard(story, index + (featured ? 0 : 1)),
+              )}
             </div>
             {!filtered.length && !featured && (
               <div className="empty-state">

@@ -4,7 +4,7 @@ test("legacy homepage subscribe card copies the feed address", async ({ page, co
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.goto("/");
   const card = page.getByRole("region", { name: "Follow The Brief" });
-  await expect(card.getByRole("link", { name: "Open the RSS feed" })).toHaveAttribute("href", "/feed.xml");
+  await expect(card.getByRole("link", { name: "Choose how to follow" })).toHaveAttribute("href", "/follow");
   await card.getByRole("button", { name: "Copy feed address" }).click();
   await expect(card.getByRole("button", { name: "Copied" })).toBeVisible();
   await expect(card.getByRole("status")).toHaveText("Feed address copied.");
@@ -30,7 +30,7 @@ test("subscribe card fits phones and has 44px targets", async ({ page }) => {
     const card = page.getByRole("region", { name: "Follow The Brief" });
     await card.scrollIntoViewIfNeeded();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    for (const target of [card.getByRole("link", { name: "Open the RSS feed" }), card.getByRole("button", { name: "Copy feed address" })])
+    for (const target of [card.getByRole("link", { name: "Choose how to follow" }), card.getByRole("button", { name: "Copy feed address" })])
       expect((await target.boundingBox())!.height).toBeGreaterThanOrEqual(44);
   }
 });

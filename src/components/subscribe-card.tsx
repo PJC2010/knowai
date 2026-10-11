@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
+import Link from "next/link";
 import { Rss, Copy, Check } from "./icons";
 
 export function SubscribeCard({ feedUrl }: { feedUrl: string }) {
@@ -25,9 +26,9 @@ export function SubscribeCard({ feedUrl }: { feedUrl: string }) {
         <Rss size={24} aria-hidden="true" />
         <h2 id={headingId}>Follow The Brief</h2>
       </div>
-      <p>New stories arrive in your feed reader after editorial review. No account or email needed.</p>
+      <p>Keep making sense of AI. Follow new, editor-reviewed stories in a reader app. No knowai account needed.</p>
       <div className="subscribe-card-actions">
-        <a className="button lime" href="/feed.xml" type="application/rss+xml">Open the RSS feed</a>
+        <Link className="button lime" href="/follow">Choose how to follow</Link>
         <button className="button secondary" type="button" onClick={copyAddress}>
           {copied ? <Check size={18} aria-hidden="true" /> : <Copy size={18} aria-hidden="true" />}
           {copied ? "Copied" : "Copy feed address"}
@@ -42,7 +43,7 @@ export function SubscribeCard({ feedUrl }: { feedUrl: string }) {
       )}
       <details>
         <summary>New to RSS?</summary>
-        <p>A feed reader collects new posts from sites you follow. Paste the feed address into any reader app.</p>
+        <p>A feed reader, such as Feedly or Inoreader, collects new posts from sites you follow. <Link href="/follow">See how to get started.</Link></p>
       </details>
     </section>
   );
