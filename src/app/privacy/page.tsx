@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ClearReaderMemory } from "@/components/clear-reader-memory";
 
 export const metadata: Metadata = {
   title: "Privacy",
   description:
-    "How knowai handles your OpenRouter key, prompts, browser storage, and public news feeds.",
+    "How knowai handles your OpenRouter key, prompts, reading preferences, browser storage, and public news feeds.",
 };
 
 export default function PrivacyPage() {
@@ -77,6 +78,14 @@ export default function PrivacyPage() {
             the information they receive under their own policies.
           </p>
           <p>
+            A shared Playground link can include a prompt in its URL. That
+            prompt can appear in your browser history and in hosting request
+            logs, and anyone you share the link with can read it. Opening a
+            prompt link only fills the prompt box; it does not send a model
+            request until you start the comparison. Do not put confidential
+            information in a shared prompt URL.
+          </p>
+          <p>
             knowai keeps the current prompt and comparison results in page
             memory, without a saved conversation history. Review{" "}
             <a
@@ -90,13 +99,28 @@ export default function PrivacyPage() {
             or confidential information.
           </p>
         </section>
+        <section className="legal-section" aria-labelledby="reading-prefs">
+          <h2 id="reading-prefs">Reading preferences on this device</h2>
+          <p>
+            knowai saves the reading depth you choose, when you last visited,
+            which stories you have read, and whether you dismissed the welcome
+            note. This data is kept in this browser’s local storage under
+            <code> knowai-reader</code>. It never leaves your device or reaches
+            knowai’s server.
+          </p>
+          <p>
+            Clearing your browser data or using the button below removes it.
+          </p>
+          <ClearReaderMemory />
+        </section>
         <section className="legal-section">
           <h2>Browsing knowai</h2>
           <p>
             The app does not include analytics trackers, advertising trackers,
             or tracking cookies. Its server fetches and caches public news feeds
             and model listings; those caches do not contain your playground
-            prompts or API key.
+            prompts or API key. Shared prompt URLs can still appear in hosting
+            request logs as described above.
           </p>
           <p>
             The hosting service may keep normal request logs, including IP

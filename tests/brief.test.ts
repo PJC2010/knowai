@@ -5,6 +5,8 @@ import {
   characterCount,
   digestText,
   normalizeSourceUrl,
+  relatedStories,
+  safeRelatedStories,
   validateTiers,
   type BriefStory,
 } from "../src/lib/brief";
@@ -13,6 +15,42 @@ import {
   parseGeneratedTiers,
 } from "../src/lib/editorial/generation";
 import { extractSource, boundedFetch } from "../src/lib/editorial/source";
+import type { NewsCategory } from "../src/lib/types";
+
+const base: BriefStory = {
+  id: "base",
+  slug: "base",
+  source_url: "https://example.com/article",
+  source_name: "Example publisher",
+  source_published_at: "2026-10-01T12:00:00Z",
+  category: "Research",
+  one_liner: "A source-backed selection.",
+  short_version: "The short version of the selected article.",
+  whole_picture: ["The whole picture."],
+  why_it_matters: "Why this article matters.",
+  published_at: "2026-10-02T12:00:00Z",
+  updated_at: "2026-10-02T12:00:00Z",
+  edition_date: "2026-10-02",
+};
+const mk = (id: string, category: NewsCategory, published_at: string): BriefStory =>
+  ({ ...base, id, slug: id, category, published_at });
+
+test("relatedStories prefers the same category, newest first, excludes current, limits to 3", () => {
+  const cur = mk("cur", "Models", "2026-10-05T00:00:00Z");
+  const all = [cur, mk("r1", "Research", "2026-10-06T00:00:00Z"), mk("m1", "Models", "2026-10-01T00:00:00Z"),
+    mk("m2", "Models", "2026-10-03T00:00:00+00:00"), mk("t1", "Tools", "2026-10-04T00:00:00Z")];
+  assert.deepEqual(relatedStories(all, cur).map((s) => s.id), ["m2", "m1", "r1"]);
+  assert.deepEqual(relatedStories([cur], cur), []);
+});
+test("relatedStories keeps input order for matching times and supports a custom limit", () => {
+  const cur = mk("cur", "Models", "2026-10-05T00:00:00Z");
+  const all = [mk("a", "Models", "2026-10-04T09:00:00Z"), mk("b", "Models", "2026-10-04T09:00:00+00:00"), cur];
+  assert.deepEqual(relatedStories(all, cur, 2).map((s) => s.id), ["a", "b"]);
+  assert.deepEqual(all.map((s) => s.id), ["a", "b", "cur"]);
+});
+test("safeRelatedStories returns [] when loading fails", async () => {
+  assert.deepEqual(await safeRelatedStories(mk("cur", "Models", "2026-10-05T00:00:00Z"), () => Promise.reject(new Error("db down"))), []);
+});
 
 const content = starters[0].content;
 const source = content.evidence.map((e) => e.quote).join(" ");
@@ -123,6 +161,25 @@ test("source URLs reject credentials, unsafe hosts, ports, and schemes", () => {
     "file:///etc/passwd",
   ])
     assert.throws(() => normalizeSourceUrl(url));
+});
+test("all seven editorial publishers retain exact-host validation and URL normalization", () => {
+  for (const host of [
+    "openai.com", "blog.google", "huggingface.co", "techcrunch.com",
+    "deepmind.google", "research.google", "engineering.fb.com",
+  ]) {
+    assert.equal(
+      normalizeSourceUrl(`https://${host.toUpperCase()}:443/story?article=42&utm_source=feed&fbclid=tracking&gclid=tracking#section`),
+      `https://${host}/story?article=42`,
+    );
+    for (const url of [
+      `http://${host}/story`,
+      `https://user:password@${host}/story`,
+      `https://${host}:8443/story`,
+      `https://www.${host}/story`,
+      `https://${host}.evil.example/story`,
+      `https://${host}@evil.example/story`,
+    ]) assert.throws(() => normalizeSourceUrl(url), /configured publishers/, url);
+  }
 });
 test("redirects are checked before fetching and oversized responses are rejected", async () => {
   const original = globalThis.fetch;

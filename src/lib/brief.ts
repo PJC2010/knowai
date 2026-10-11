@@ -28,6 +28,28 @@ export type BriefStory = {
   image_alt?: string | null;
   featured_week?: string | null;
 };
+export function relatedStories(stories: BriefStory[], current: BriefStory, limit = 3): BriefStory[] {
+  return stories
+    .filter((story) => story.id !== current.id)
+    .sort((a, b) =>
+      Number(b.category === current.category) - Number(a.category === current.category) ||
+      Date.parse(b.published_at) - Date.parse(a.published_at),
+    )
+    .slice(0, limit);
+}
+
+export async function safeRelatedStories(
+  current: BriefStory,
+  load: () => Promise<BriefStory[]>,
+  limit = 3,
+): Promise<BriefStory[]> {
+  try {
+    return relatedStories(await load(), current, limit);
+  } catch {
+    return [];
+  }
+}
+
 export type Revision = {
   id: string;
   story_id: string;
@@ -112,9 +134,15 @@ export function normalizeSourceUrl(input: string): string {
     url.username ||
     url.password ||
     (url.port && url.port !== "443") ||
-    !["openai.com", "blog.google", "huggingface.co", "techcrunch.com", "deepmind.google", "research.google", "engineering.fb.com"].includes(
-      url.hostname,
-    )
+    ![
+      "openai.com",
+      "blog.google",
+      "huggingface.co",
+      "techcrunch.com",
+      "deepmind.google",
+      "research.google",
+      "engineering.fb.com",
+    ].includes(url.hostname)
   )
     throw new Error(
       "Only the configured publishers’ HTTPS URLs are supported.",

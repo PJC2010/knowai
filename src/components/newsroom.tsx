@@ -16,6 +16,7 @@ import {
 import type { NewsData, Model, Article } from "@/lib/types";
 import { dateLabel, formatPrice, formatContext } from "@/lib/format";
 import { ModelMark, providerName } from "./model-mark";
+import { SubscribeCard } from "./subscribe-card";
 
 function ArticleMeta({ article }: { article: Article }) {
   return (
@@ -35,10 +36,12 @@ export function Newsroom({
   data,
   models,
   catalogInfo,
+  feedUrl,
 }: {
   data: NewsData;
   models: Model[];
   catalogInfo: { fallback: boolean; fetchedAt: string };
+  feedUrl: string;
 }) {
   const [filter, setFilter] = useState("All updates");
   const [limit, setLimit] = useState(6);
@@ -61,7 +64,7 @@ export function Newsroom({
     <div className="page-container newsroom">
       <div className="edition-line">
         <span>
-          <span className="edition-dot" /> Your daily AI briefing
+          <span className="edition-dot" /> Your AI briefing
         </span>
         <time>
           {new Date(data.fetchedAt).toLocaleDateString("en-US", {
@@ -74,19 +77,18 @@ export function Newsroom({
         </time>
       </div>
       <section className="page-heading home-heading">
-        <h1>
-          A clearer view
-          <br />
-          of AI<span className="heading-period">.</span>
-        </h1>
+        <h1>AI news everyone can understand.</h1>
         <div className="home-context">
           <p>
             The news that matters. The models worth knowing. All in plain
             English.
           </p>
-          <Link className="quiet-link" href="/learn">
-            <BookOpen size={16} /> New to AI? Start here
-          </Link>
+          <div className="hero-actions">
+            <Link className="button lime" href="/follow">Get The Brief</Link>
+            <Link className="quiet-link" href="/learn">
+              New to AI? Start here <ArrowUpRight size={16} />
+            </Link>
+          </div>
         </div>
       </section>
       {(data.fallback || data.sources.some((s) => !s.ok)) && (
@@ -241,6 +243,7 @@ export function Newsroom({
           </button>
         )}
       </section>
+      <SubscribeCard feedUrl={feedUrl} />
       <section className="playground-banner" data-reveal>
         <div className="banner-icon">
           <FlaskConical size={30} />

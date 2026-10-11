@@ -90,6 +90,14 @@ const server=createServer(async(req,res)=>{
     if(url.pathname==='/health')return send(200,{ready:true});
     if(url.pathname==='/_fixture/otp-requests')return send(200,otpRequests);
     if(url.pathname==='/_fixture/reset'&&req.method==='POST'){await seed(); saveFailure='none'; saveDelay=0; return send(200,{ok:true});}
+    if(url.pathname==='/_fixture/cross-edition'&&req.method==='POST'){
+      // Two seeded stories remain in the Oct 4 edition; the other two move to Oct 5.
+      for(const i of [2,3]) await db.query(
+        'update brief_publications set edition_date=$1,published_at=$2 where id=$3',
+        ['2026-10-05','2026-10-05T09:00:00.000Z',sourceId(i)],
+      );
+      return send(200,{ok:true});
+    }
     if(url.pathname==='/_fixture/attempts'&&req.method==='POST'){
       if(!Number.isInteger(args.count)||args.count<0||args.count>1000)return send(400,{message:'Invalid fixture attempt count'});
       await db.query("insert into brief_jobs(story_id,dedupe_key,state,attempted_at,finished_at) select $1,'fixture-attempt-'||gen_random_uuid(),'failed',now(),now() from generate_series(1,$2::integer)",[sourceId(0),args.count]);

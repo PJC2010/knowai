@@ -20,6 +20,7 @@ import {
 import type { ModelsData, ComparisonResult } from "@/lib/types";
 import { complete, estimateCost } from "@/lib/openrouter";
 import { formatPrice, dateLabel } from "@/lib/format";
+import { promptFromParams } from "@/lib/playground-link";
 import { ModelMark, providerName } from "./model-mark";
 import { useConnection } from "./connection";
 import { ResponseSkeleton } from "./skeleton";
@@ -63,7 +64,17 @@ export function Playground({ data }: { data: ModelsData }) {
           ),
         ].slice(0, 2);
   });
-  const [prompt, setPrompt] = useState("");
+  const linkedPrompt = params.get("prompt");
+  const [prompt, setPrompt] = useState(() => promptFromParams(params));
+  const [fromLink, setFromLink] = useState(() => !!promptFromParams(params));
+  const previousLinkedPrompt = useRef(linkedPrompt);
+  useEffect(() => {
+    if (previousLinkedPrompt.current === linkedPrompt) return;
+    previousLinkedPrompt.current = linkedPrompt;
+    const nextPrompt = promptFromParams(params);
+    setPrompt(nextPrompt);
+    setFromLink(!!nextPrompt);
+  }, [linkedPrompt, params]);
   const [maxTokens, setMaxTokens] = useState(1024);
   const [results, setResults] = useState<ComparisonResult[]>([]);
   const [runPrompt, setRunPrompt] = useState("");
@@ -276,6 +287,12 @@ export function Playground({ data }: { data: ModelsData }) {
           </h2>
           <span className="subtle">Same prompt, every model.</span>
         </div>
+        {fromLink && (
+          <p className="notice">
+            Prompt loaded from a link. Read it first; nothing is sent until you
+            start the comparison.
+          </p>
+        )}
         <label className="sr-only" htmlFor="prompt">
           Your prompt
         </label>

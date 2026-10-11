@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 test("news categories and navigation work", async ({ page }) => {
   await page.goto("/");
   await expect(
-    page.getByRole("heading", { name: "A clearer view of AI" }),
+    page.getByRole("heading", { name: "AI news everyone can understand." }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Research", exact: true }).click();
   await expect(

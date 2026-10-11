@@ -17,11 +17,11 @@ const siteUrl =
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  title: { default: "knowai — A clearer view of AI", template: "%s · knowai" },
+  title: { default: "knowai — AI knowledge everyone can understand", template: "%s · knowai" },
   description:
     "Make sense of AI with the latest news, clear model guides, and model comparisons with transparent costs.",
   openGraph: {
-    title: "knowai — A clearer view of AI",
+    title: "knowai — AI knowledge everyone can understand",
     description:
       "AI news, explained. Explore the models and compare their answers and costs.",
     type: "website",
@@ -34,7 +34,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "knowai — A clearer view of AI",
+    title: "knowai — AI knowledge everyone can understand",
     description:
       "AI news, explained. Explore the models and compare their answers and costs.",
     images: [

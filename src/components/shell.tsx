@@ -27,6 +27,7 @@ export function Logo() {
 export function Header() {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
+  const isPlayground = pathname === "/playground";
   const connectAfterClose = useRef(false);
   const { connected, openConnect } = useConnection();
 
@@ -65,7 +66,9 @@ export function Header() {
             ))}
           </nav>
           <div className="header-actions">
-            <button
+            {!isPlayground ? (
+              <Link className="button lime header-follow" href="/follow">Get The Brief</Link>
+            ) : <button
               type="button"
               className={`button connect-button ${connected ? "is-connected" : ""}`}
               aria-label={
@@ -81,7 +84,7 @@ export function Header() {
                 <KeyRound size={16} aria-hidden="true" />
               )}
               <span>{connected ? "Connected" : "Connect OpenRouter"}</span>
-            </button>
+            </button>}
             <Dialog.Trigger asChild>
               <button
                 type="button"
@@ -146,7 +149,7 @@ export function Header() {
               </Link>
             ))}
           </nav>
-          <button
+          {isPlayground ? <button
             type="button"
             className={`button primary mobile-menu-connect ${connected ? "is-connected" : ""}`}
             onClick={() => {
@@ -160,9 +163,9 @@ export function Header() {
               <KeyRound size={24} aria-hidden="true" />
             )}
             {connected ? "Manage OpenRouter connection" : "Connect OpenRouter"}
-          </button>
+          </button> : <Link className="button primary mobile-menu-connect" href="/follow" onClick={() => setMenuOpen(false)}>Get The Brief</Link>}
           <p className="mobile-menu-note">
-            Your own account. Your choice of model.
+            {isPlayground ? "Your own account. Your choice of model." : "AI knowledge everyone can understand."}
           </p>
         </Dialog.Content>
       </Dialog.Portal>
@@ -178,9 +181,10 @@ export function Footer() {
         <Link href="/" aria-label="knowai home">
           <Logo />
         </Link>
-        <p>A little less noise. A lot more understanding.</p>
+        <p>AI knowledge everyone can understand.</p>
       </div>
       <div className="footer-links">
+        <Link href="/follow">Get The Brief</Link>
         <Link href="/learn">AI, explained</Link>
         <Link href="/playground">Try a model</Link>
         <a className="footer-rss" href="/feed.xml" type="application/rss+xml" aria-describedby="rss-help">Subscribe via RSS</a>
