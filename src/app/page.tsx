@@ -1,9 +1,16 @@
+import { pageMetadata } from "@/lib/page-metadata";
 import { getNews } from "@/lib/news";
 import { getModels, featuredModels } from "@/lib/models";
 import { Newsroom } from "@/components/newsroom";
 import { BriefFeed } from "@/components/brief-feed";
 import { getPublishedStories } from "@/lib/editorial/published";
 import { depths, type Depth } from "@/lib/brief";
+import { siteUrl } from "@/lib/site-url";
+export const metadata = pageMetadata(
+  "AI news everyone can understand",
+  "Make sense of AI news in plain English. Read The Brief, learn the basics, and explore AI models at your own pace.",
+  "/",
+);
 export const revalidate = 900;
 export default async function Home({
   searchParams,
@@ -13,6 +20,7 @@ export default async function Home({
   // Read before the rollout branch so the first publication cannot turn a
   // previously prerendered legacy homepage into a dynamic route at runtime.
   const query = await searchParams;
+  const feedUrl = new URL("/feed.xml", siteUrl()).href;
   if (process.env.BRIEF_V2_ENABLED === "true") {
     const stories = await getPublishedStories();
     if (stories.length) {
@@ -23,7 +31,9 @@ export default async function Home({
       return (
         <BriefFeed
           stories={stories}
+          feedUrl={feedUrl}
           initialDepth={depth}
+          depthFromUrl={typeof query.depth === "string" && depths.includes(query.depth as Depth)}
           initialDate={
             typeof query.date === "string" &&
             /^\d{4}-\d{2}-\d{2}$/.test(query.date)
@@ -46,6 +56,7 @@ export default async function Home({
   return (
     <Newsroom
       data={news}
+      feedUrl={feedUrl}
       models={featuredModels(catalog.models)}
       catalogInfo={{ fallback: catalog.fallback, fetchedAt: catalog.fetchedAt }}
     />

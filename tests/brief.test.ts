@@ -5,6 +5,8 @@ import {
   characterCount,
   digestText,
   normalizeSourceUrl,
+  relatedStories,
+  safeRelatedStories,
   validateTiers,
   type BriefStory,
 } from "../src/lib/brief";
@@ -13,6 +15,42 @@ import {
   parseGeneratedTiers,
 } from "../src/lib/editorial/generation";
 import { extractSource, boundedFetch } from "../src/lib/editorial/source";
+import type { NewsCategory } from "../src/lib/types";
+
+const base: BriefStory = {
+  id: "base",
+  slug: "base",
+  source_url: "https://example.com/article",
+  source_name: "Example publisher",
+  source_published_at: "2026-10-01T12:00:00Z",
+  category: "Research",
+  one_liner: "A source-backed selection.",
+  short_version: "The short version of the selected article.",
+  whole_picture: ["The whole picture."],
+  why_it_matters: "Why this article matters.",
+  published_at: "2026-10-02T12:00:00Z",
+  updated_at: "2026-10-02T12:00:00Z",
+  edition_date: "2026-10-02",
+};
+const mk = (id: string, category: NewsCategory, published_at: string): BriefStory =>
+  ({ ...base, id, slug: id, category, published_at });
+
+test("relatedStories prefers the same category, newest first, excludes current, limits to 3", () => {
+  const cur = mk("cur", "Models", "2026-10-05T00:00:00Z");
+  const all = [cur, mk("r1", "Research", "2026-10-06T00:00:00Z"), mk("m1", "Models", "2026-10-01T00:00:00Z"),
+    mk("m2", "Models", "2026-10-03T00:00:00+00:00"), mk("t1", "Tools", "2026-10-04T00:00:00Z")];
+  assert.deepEqual(relatedStories(all, cur).map((s) => s.id), ["m2", "m1", "r1"]);
+  assert.deepEqual(relatedStories([cur], cur), []);
+});
+test("relatedStories keeps input order for matching times and supports a custom limit", () => {
+  const cur = mk("cur", "Models", "2026-10-05T00:00:00Z");
+  const all = [mk("a", "Models", "2026-10-04T09:00:00Z"), mk("b", "Models", "2026-10-04T09:00:00+00:00"), cur];
+  assert.deepEqual(relatedStories(all, cur, 2).map((s) => s.id), ["a", "b"]);
+  assert.deepEqual(all.map((s) => s.id), ["a", "b", "cur"]);
+});
+test("safeRelatedStories returns [] when loading fails", async () => {
+  assert.deepEqual(await safeRelatedStories(mk("cur", "Models", "2026-10-05T00:00:00Z"), () => Promise.reject(new Error("db down"))), []);
+});
 
 const content = starters[0].content;
 const source = content.evidence.map((e) => e.quote).join(" ");

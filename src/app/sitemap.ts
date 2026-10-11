@@ -5,7 +5,7 @@ export const revalidate = 300;
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const stories = await getPublishedStories();
   return [
-    ...["", "/models", "/playground", "/learn", "/privacy", "/terms"].map(
+    ...["", "/models", "/playground", "/learn", "/follow", "/privacy", "/terms"].map(
       (path) => ({
         url: `${siteUrl()}${path}`,
         changeFrequency: "weekly" as const,

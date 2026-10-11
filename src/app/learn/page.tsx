@@ -1,4 +1,8 @@
 import Link from "next/link";
+import { glossary } from "@/lib/glossary";
+import { SubscribeCard } from "@/components/subscribe-card";
+import { siteUrl } from "@/lib/site-url";
+import { GlossaryHashPosition } from "@/components/glossary-hash-position";
 import {
   BookOpen,
   MessageCircle,
@@ -10,7 +14,12 @@ import {
   FlaskConical,
   ExternalLink,
 } from "@/components/icons";
-export const metadata = { title: "AI 101 — Plain English guides" };
+import { pageMetadata } from "@/lib/page-metadata";
+export const metadata = pageMetadata(
+  "AI 101 — Plain English guides",
+  "New to AI? Learn how AI models work, how to ask better questions, and what common AI terms mean. Plain-English guides with no technical background needed.",
+  "/learn",
+);
 const lessons = [
   {
     id: "llms",
@@ -133,6 +142,19 @@ export default function LearnPage() {
           ))}
         </div>
       </div>
+      <section aria-labelledby="glossary-title" id="glossary" className="learn-glossary">
+        <GlossaryHashPosition />
+        <h2 id="glossary-title">Glossary</h2>
+        <dl>
+          {glossary.map(({ id, term, definition }) => (
+            <div key={id}>
+              <dt id={`term-${id}`}>{term}</dt>
+              <dd>{definition}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+      <SubscribeCard feedUrl={new URL("/feed.xml", siteUrl()).href} />
       <section className="playground-banner" data-reveal>
         <div className="banner-icon">
           <FlaskConical size={30} />

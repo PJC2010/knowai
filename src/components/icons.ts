@@ -23,6 +23,7 @@ export {
   Square,
   Play,
   Copy,
+  Rss,
   Info,
   ChatCircleText as MessageSquare,
   ChatCircleText as MessageCircle,
