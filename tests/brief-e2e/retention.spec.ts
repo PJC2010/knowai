@@ -23,7 +23,7 @@ test("story pages lead to more reading, subscription, and the Brief", async ({ p
   await page.screenshot({ path: testInfo.outputPath("story-continuation-mobile.png"), fullPage: true });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   for (const link of await more.all()) expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44);
-  await page.getByRole("link", { name: "Read today’s Brief" }).click();
+  await page.getByRole("link", { name: "Read the latest Brief" }).click();
   await expect(page).toHaveURL("/");
   const card = page.locator(".brief-card", { has: page.locator(`#${slug}-title`) });
   await expect(card.locator(".brief-read")).toHaveText("Read");

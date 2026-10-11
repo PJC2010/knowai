@@ -79,9 +79,10 @@ export default async function StoryPage({
           __html: JSON.stringify(structured).replace(/</g, "\\u003c"),
         }}
       />
+      <p className="story-intro"><strong>New to knowai?</strong> AI knowledge everyone can understand. Read each story at the depth you choose.</p>
       <header className="page-heading">
         <Link href={`/?date=${story.edition_date}`} className="small-link">
-          ← Back to The Brief
+          Read The Brief
         </Link>
         <div className="story-kicker">
           <span className="category-tag">{story.category}</span>
@@ -117,6 +118,10 @@ export default async function StoryPage({
           <GlossaryText segments={short} scope={story.slug} />
         </p>
       </section>
+      <aside className="brief-follow-prompt" aria-label="Keep up with The Brief">
+        <p><strong>Make sense of the next story, too.</strong> Follow The Brief in a reader app.</p>
+        <Link className="small-link" href="/follow">Get The Brief</Link>
+      </aside>
       <section id="full" className="story-section">
         <h2>The whole picture</h2>
         {story.whole_picture.map((_, i) => (
@@ -149,6 +154,7 @@ export default async function StoryPage({
         </p>
       </section>
       <MarkStoryRead id={story.id} />
+      <SubscribeCard feedUrl={new URL("/feed.xml", siteUrl()).href} />
       {related.length > 0 && (
         <section className="story-more" aria-labelledby="keep-reading-title">
           <h2 id="keep-reading-title">Keep reading</h2>
@@ -162,9 +168,8 @@ export default async function StoryPage({
           </div>
         </section>
       )}
-      <SubscribeCard feedUrl={new URL("/feed.xml", siteUrl()).href} />
       <p className="story-about">
-        knowai explains AI news in plain English, at the depth you choose. <Link href="/">Read today’s Brief</Link>
+        knowai explains AI news in plain English, at the depth you choose. <Link href="/">Read the latest Brief</Link>
       </p>
     </article>
   );
