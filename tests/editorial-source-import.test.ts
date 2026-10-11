@@ -43,7 +43,7 @@ test('new publisher imports validate every redirect hop before fetching it',asyn
   const first=`https://${host}/story`;
   const next=`https://${host}/canonical?article=42`;
   const requests:string[]=[];
-  t.mock.method(globalThis,'fetch',async(input)=>{
+  t.mock.method(globalThis,'fetch',async(input: Parameters<typeof globalThis.fetch>[0])=>{
    const url=String(input);requests.push(url);
    if(url===first)return new Response(null,{status:302,headers:{location:'/canonical?article=42&utm_source=redirect#section'}});
    if(url===next)return new Response(null,{status:302,headers:{location:`https://${host}.evil.example/private`}});
