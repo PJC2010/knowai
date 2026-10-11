@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 
-async function openMobileMenu(page: Page) {
-  await page.goto("/");
+async function openMobileMenu(page: Page, path = "/") {
+  await page.goto(path);
   await page.getByRole("button", { name: "Open menu", exact: true }).click();
   const menu = page.getByRole("dialog", { name: "Explore knowai" });
   await expect(menu).toBeVisible();
@@ -29,8 +29,8 @@ test.describe("mobile navigation accessibility", () => {
   test("Tab and Shift+Tab wrap within the open menu", async ({ page }) => {
     const menu = await openMobileMenu(page);
     const firstControl = menu.getByRole("link", { name: "knowai home" });
-    const lastControl = menu.getByRole("button", {
-      name: "Connect OpenRouter",
+    const lastControl = menu.getByRole("link", {
+      name: "Get The Brief",
       exact: true,
     });
 
@@ -43,10 +43,10 @@ test.describe("mobile navigation accessibility", () => {
     await expect(menu).toBeVisible();
   });
 
-  test("connecting from the menu opens a usable connection dialog", async ({
+  test("connecting from the Playground menu opens a usable connection dialog", async ({
     page,
   }) => {
-    const menu = await openMobileMenu(page);
+    const menu = await openMobileMenu(page, "/playground");
     await menu
       .getByRole("button", { name: "Connect OpenRouter", exact: true })
       .click();
@@ -108,7 +108,7 @@ test("footer legal links lead to readable pages with a path back home", async ({
       .click();
     await expect(page).toHaveURL("/");
     await expect(
-      page.getByRole("heading", { name: "A clearer view of AI" }),
+      page.getByRole("heading", { name: "AI news everyone can understand." }),
     ).toBeVisible();
   }
 });

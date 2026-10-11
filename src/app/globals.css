@@ -457,6 +457,17 @@ a svg {
   align-items: center;
   gap: 0.5rem;
 }
+.header-follow {
+  min-height: 44px;
+  padding: 0.625rem 0.875rem;
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+@media (max-width: 23rem) {
+  .header-inner .logo { font-size: 1.125rem; }
+  .header-inner .logo-icon { width: 1.25rem; margin-right: 0.25rem; }
+  .header-follow { padding-inline: 0.625rem; font-size: 0.75rem; }
+}
 .button.connect-button {
   min-height: 3rem;
   padding: 0.5rem 1rem;
@@ -902,6 +913,41 @@ a:hover > .story-top > svg {
 }
 .news-card .article-meta {
   margin-top: auto;
+}
+/* Follow is a reading page; the RSS endpoint remains machine-readable. */
+.follow-page { max-width: 64rem; }
+.follow-page .page-heading p { max-width: 60ch; }
+.follow-options, .follow-note {
+  margin-bottom: 1.5rem;
+  padding: clamp(1rem, 3vw, 2rem);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.follow-options h2, .follow-note h2 { font-size: 1.5rem; line-height: 2rem; }
+.follow-options p, .follow-note p { margin: 1rem 0; max-width: 70ch; color: var(--muted); }
+.follow-reader-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+.follow-reader {
+  padding: 1.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+}
+.follow-reader:hover { border-color: var(--accent); }
+.follow-reader strong { display: flex; gap: 0.5rem; align-items: center; color: var(--accent); }
+.follow-reader span { display: block; margin-top: 0.5rem; color: var(--muted); font-size: 0.875rem; }
+.follow-raw a {
+  display: inline-block;
+  min-height: 44px;
+  padding-block: 0.625rem;
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
 }
 .subscribe-card {
   margin: 3rem 0;
