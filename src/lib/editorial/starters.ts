@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import starters from "@/data/editorial-starters.json";
 import { serviceDatabase } from "./supabase";
 import { retrieveSourceArticle } from "./source";
+import { requireSourceAccess } from "./source-access";
 import { validateTiers } from "../brief";
 
 /** These AI-assisted starter texts are never public until an editor approves them. */
@@ -42,7 +43,8 @@ export async function importStarterDrafts() {
     }
     const jobId = job.data[0].id;
     try {
-      const article = await retrieveSourceArticle(source.url);
+      const { canonicalUrl } = await requireSourceAccess(db, source.url);
+      const article = await retrieveSourceArticle(canonicalUrl);
       const text = article.text;
       if (validateTiers(content, text).length)
         throw new Error(

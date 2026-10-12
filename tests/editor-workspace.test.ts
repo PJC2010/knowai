@@ -19,6 +19,18 @@ test("opening and leaving a draft preserves queue filters and page without trust
   assert.equal(new URL(desk.deskHref({ ...query, id: "revision-1" }, { id: undefined }), url).searchParams.has("id"), false);
 });
 
+test("source type stays in queue, draft and pagination URLs and can be cleared independently", () => {
+  const query = { view: "inbox", q: "AI", publisher: "p1", sourceKind: "research", category: "Tools", since: "2026-10-01", status: "saved", page: "3" };
+  for (const patch of [{ id: "revision-1" }, { id: undefined }, { page: "4" }, { view: "drafts", page: undefined }]) {
+    const url = new URL(desk.deskHref(query, patch), "https://example.com");
+    assert.equal(url.searchParams.get("sourceKind"), "research");
+    for (const key of ["q", "publisher", "category", "since", "status"] as const) assert.equal(url.searchParams.get(key), query[key]);
+  }
+  const cleared = new URL(desk.deskHref(query, { sourceKind: undefined, page: undefined }), "https://example.com");
+  assert.equal(cleared.searchParams.has("sourceKind"), false);
+  assert.equal(cleared.searchParams.get("q"), "AI");
+});
+
 const source: DeskSource = { id: "s1", slug: "story", title: "A useful original headline", url: "https://openai.com/story", source_name: "OpenAI", source_published_at: "2026-10-01T09:00:00Z", category: "Tools", publisher_id: "p1", triage: "selected", job_state: null, revision_id: null };
 test("inbox cards expose original metadata and persisted selection with reversible triage actions", () => {
   assert.equal(typeof inbox.SourceCard, "function");

@@ -7,14 +7,24 @@ process.env.NEXT_PUBLIC_SUPABASE_URL="http://127.0.0.1:59999";
 process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY="fixture-public";
 process.env.SUPABASE_SECRET_KEY="fixture-service";
 const publisher={id:"11111111-1111-4111-8111-111111111111",name:"OpenAI",feed_url:"https://openai.com/news/rss.xml",enabled:true};
-const json=(data:unknown)=>new Response(JSON.stringify(data),{headers:{"Content-Type":"application/json"}});
+import { publisherByName } from '../src/lib/editorial/publisher-catalog';
+const json=(data:unknown,status=200)=>new Response(JSON.stringify(Array.isArray(data)?data.map(row=>{
+ if(!row || typeof row !== 'object' || !('feed_url' in row))return row;
+ const definition=publisherByName(row.name);if(!definition)return row;
+ return {...row,catalog_key:definition.key,source_kind:definition.kind,discovery_method:definition.discovery.method,discovery_url:row.feed_url,access_status:'approved'};
+}):data),{status,headers:{'Content-Type':'application/json'}});
+// Discovery coordination is exercised against actual SQL in source-expansion tests.
+const discoveryInfrastructure=(u:string)=>u.includes('/brief_publishers?') && new URL(u).searchParams.get('select')==='id,access_status' ? json({id:publisher.id,access_status:'approved'})
+ :u.includes('/rpc/acquire_brief_discovery')?json(true)
+ :u.includes('/rpc/release_brief_discovery')?json(null)
+ :u.includes('/brief_sources?')&&new URL(u).searchParams.get('select')==='url'?json([]):null;
 
 test('cron is discovery-only by default and runs selected work only in consented automatic mode',async(t)=>{
  const {GET}=await import('../src/app/api/cron/editorial/route');
  process.env.CRON_SECRET='fixture-cron';delete process.env.EDITORIAL_OPENROUTER_API_KEY;
  let auto=false;const calls:string[]=[];
  t.mock.method(globalThis,'fetch',async(input:RequestInfo|URL)=>{
-  const url=String(input);calls.push(url);
+  const url=String(input);const infrastructure=discoveryInfrastructure(url);if(infrastructure)return infrastructure;calls.push(url);
   if(url.includes('brief_publishers')) return json([]);
   if(url.includes('brief_settings')) return json({auto_draft:auto});
   if(url.includes('/brief_jobs')) return json([]);
@@ -39,6 +49,7 @@ test("worker targets exact requested jobs, attempts at most three and retains fa
  const content=starters[0].content;
  t.mock.method(globalThis,'fetch',async(input:RequestInfo|URL,init?:RequestInit)=>{
   const url=String(input), body=init?.body?JSON.parse(String(init.body)):{};
+  const infrastructure=discoveryInfrastructure(url);if(infrastructure)return infrastructure;
   if(url.includes('/rpc/acquire_brief_worker')) return json(true);
   if(url.includes('/rpc/release_brief_worker')) {released=true;return json(null);}
   if(url.includes('/rpc/claim_brief')) {assert.ok(url.endsWith('/claim_brief_selected_job'));assert.deepEqual(body.p_job_ids,ids);claims++; return json([{id:ids[0],story_id:publisher.id}]);}
@@ -58,7 +69,7 @@ test("discovery reads enabled publishers and persists health without queueing or
  const calls:{url:string;method:string;body:unknown}[]=[];
  delete process.env.EDITORIAL_OPENROUTER_API_KEY;
  t.mock.method(globalThis,"fetch",async(input:RequestInfo|URL,init?:RequestInit)=>{
-  const url=String(input); calls.push({url,method:init?.method||"GET",body:init?.body?JSON.parse(String(init.body)):null});
+  const url=String(input);const infrastructure=discoveryInfrastructure(url);if(infrastructure)return infrastructure; calls.push({url,method:init?.method||"GET",body:init?.body?JSON.parse(String(init.body)):null});
   if(url.includes("brief_publishers") && (!init?.method||init.method==='GET')) return json([publisher]);
   if(url.includes("rss.xml")) return new Response('<rss><channel><item><title>New model</title><link>https://openai.com/news/new-model</link><pubDate>2026-10-01T00:00:00Z</pubDate></item></channel></rss>');
   if(url.includes("brief_sources")) return json([{id:"22222222-2222-4222-8222-222222222222"}]);
@@ -75,7 +86,7 @@ test('discovery considers approved primary-feed entries beyond the first eight',
  const saved:string[]=[];
  const feed=Array.from({length:12},(_,i)=>`<item><title>Research update ${i+1}</title><link>https://openai.com/news/research-${i+1}</link><pubDate>2026-10-01T00:00:00Z</pubDate></item>`).join('');
  t.mock.method(globalThis,'fetch',async(input:RequestInfo|URL,init?:RequestInit)=>{
-  const url=String(input);
+  const url=String(input);const infrastructure=discoveryInfrastructure(url);if(infrastructure)return infrastructure;
   if(url.includes('brief_publishers') && (!init?.method || init.method==='GET')) return json([publisher]);
   if(url===publisher.feed_url) return new Response(`<rss><channel>${feed}</channel></rss>`);
   if(url.includes('brief_sources')) {
@@ -94,7 +105,7 @@ test('discovery considers approved primary-feed entries beyond the first eight',
 test('discovery imports Atom alternate links and published dates as source metadata',async(t)=>{
  const saved:Record<string,unknown>[]=[];
  t.mock.method(globalThis,'fetch',async(input:RequestInfo|URL,init?:RequestInit)=>{
-  const url=String(input);
+  const url=String(input);const infrastructure=discoveryInfrastructure(url);if(infrastructure)return infrastructure;
   if(url.includes('brief_publishers') && (!init?.method || init.method==='GET')) return json([publisher]);
   if(url===publisher.feed_url) return new Response(`<feed xmlns="http://www.w3.org/2005/Atom"><entry><title>New model in Atom</title><link rel="self" href="https://openai.com/news/feed-entry"/><link rel="alternate" href="https://openai.com/news/atom-model"/><published>2026-10-01T14:05:00Z</published><updated>2026-10-02T14:05:00Z</updated></entry></feed>`);
   if(url.includes('brief_sources')) { saved.push(JSON.parse(String(init?.body))); return json([{id:'22222222-2222-4222-8222-222222222222'}]); }
@@ -112,7 +123,7 @@ test('discovery reports a feed that exceeds its bounded scan window',async(t)=>{
  let saved=0;
  const entries=Array.from({length:51},(_,i)=>`<item><title>Paper ${i+1}</title><link>https://openai.com/news/paper-${i+1}</link><pubDate>2026-10-01T00:00:00Z</pubDate></item>`).join('');
  t.mock.method(globalThis,'fetch',async(input:RequestInfo|URL,init?:RequestInit)=>{
-  const url=String(input);
+  const url=String(input);const infrastructure=discoveryInfrastructure(url);if(infrastructure)return infrastructure;
   if(url.includes('brief_publishers') && (!init?.method || init.method==='GET')) return json([publisher]);
   if(url===publisher.feed_url) return new Response(`<rss><channel>${entries}</channel></rss>`);
   if(url.includes('brief_publishers') && init?.method==='PATCH') updates.push(JSON.parse(String(init.body)));
@@ -122,7 +133,8 @@ test('discovery reports a feed that exceeds its bounded scan window',async(t)=>{
  const result=await pipeline.discoverStories();
  assert.equal(result.discovered,50);
  assert.match(result.message,/OpenAI.*50.*(limit|window|scanned)/i);
- assert.ok(updates.some(update=>String(update.last_error).includes('50')),'The publisher settings must show the warning after refresh');
+ assert.ok(updates.some(update=>String(update.last_warning).includes('50')),'The publisher settings must show the warning after refresh');
+ assert.ok(updates.some(update=>update.last_success_at && update.last_error===null),'A scan warning is not a feed error');
  assert.ok(updates.some(update=>update.last_success_at),'The feed itself was healthy');
 });
 
@@ -132,7 +144,7 @@ test('wider discovery does not widen the pre-existing automatic drafting window'
  let nextId=0;
  let eligible:string[]=[];
  t.mock.method(globalThis,'fetch',async(input:RequestInfo|URL,init?:RequestInit)=>{
-  const url=String(input);
+  const url=String(input);const infrastructure=discoveryInfrastructure(url);if(infrastructure)return infrastructure;
   if(url.includes('brief_publishers') && (!init?.method || init.method==='GET')) return json([publisher]);
   if(url===publisher.feed_url) return new Response(`<rss><channel>${entries}</channel></rss>`);
   if(url.includes('brief_sources')) return json([{id:`22222222-2222-4222-8222-${String(++nextId).padStart(12,'0')}`}]);
@@ -159,6 +171,7 @@ test('scheduled drafting claims existing and newly queued eligible auto jobs, ne
  let queue=[oldAuto,newAuto,manual,newFeedAuto];
  t.mock.method(globalThis,'fetch',async(input:RequestInfo|URL,init?:RequestInit)=>{
   const url=String(input),body=init?.body?JSON.parse(String(init.body)):{};
+  const infrastructure=discoveryInfrastructure(url);if(infrastructure)return infrastructure;
   if(url.includes('/brief_publishers') && (!init?.method || init.method==='GET')) return json([publisher]);
   if(url===publisher.feed_url) return new Response('<rss><channel><item><title>New model</title><link>https://openai.com/news/new-model</link><pubDate>2026-10-01T00:00:00Z</pubDate></item></channel></rss>');
   if(url.includes('/brief_sources') && (!init?.method || init.method==='GET')) return json([
@@ -187,6 +200,22 @@ test('scheduled drafting claims existing and newly queued eligible auto jobs, ne
  assert.deepEqual(calls,[[oldAuto.id,newAuto.id],[]],'An empty auto queue cannot turn into an unscoped claim');
 });
 
+test('a queued job cannot fetch an article or call a model after access approval is revoked',async(t)=>{
+ process.env.EDITORIAL_OPENROUTER_API_KEY='fixture-model';let claims=0,external=0;
+ const jobId='22222222-2222-4222-8222-222222222222';
+ t.mock.method(globalThis,'fetch',async(input:RequestInfo|URL)=>{
+  const url=String(input);
+  if(url.startsWith('https:')){external++;throw new Error('No external fetch allowed');}
+  if(url.includes('acquire_brief_worker'))return json(true);
+  if(url.includes('claim_brief_selected_job'))return json(claims++?[]:[{id:jobId,story_id:jobId}]);
+  if(url.includes('brief_sources'))return json({id:jobId,url:'https://www.anthropic.com/news/fixture-model',title:'Fixture model'});
+  if(url.includes('brief_publishers'))return json({id:jobId,access_status:'review_required'});
+  return json(null);
+ });
+ const result=await pipeline.runEditorialBatch([jobId]);
+ assert.equal(result.failed,1);assert.equal(result.generated,0);assert.equal(external,0);
+});
+
 test('new primary feeds only discover AI-relevant metadata and cannot join automatic drafting',async(t)=>{
  const publishers=[
   {id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',name:'Google DeepMind',feed_url:'https://deepmind.google/blog/rss.xml'},
@@ -200,7 +229,7 @@ test('new primary feeds only discover AI-relevant metadata and cannot join autom
  };
  const saved:Record<string,unknown>[]=[];
  t.mock.method(globalThis,'fetch',async(input:RequestInfo|URL,init?:RequestInit)=>{
-  const url=String(input);
+  const url=String(input);const infrastructure=discoveryInfrastructure(url);if(infrastructure)return infrastructure;
   if(url.includes('brief_publishers') && (!init?.method || init.method==='GET')) return json(publishers);
   if(url in feeds) return new Response(feeds[url]);
   if(url.includes('brief_sources')) {saved.push(JSON.parse(String(init?.body)));return json([{id:`22222222-2222-4222-8222-${String(saved.length).padStart(12,'0')}`}]);}
@@ -230,7 +259,7 @@ test('AI topic filter reads attributed RSS category text and Atom term or label,
  </feed>`;
  const saved:string[]=[];
  t.mock.method(globalThis,'fetch',async(input:RequestInfo|URL,init?:RequestInit)=>{
-  const url=String(input);
+  const url=String(input);const infrastructure=discoveryInfrastructure(url);if(infrastructure)return infrastructure;
   if(url.includes('/brief_publishers') && (!init?.method || init.method==='GET')) return json([research,engineering]);
   if(url===research.feed_url) return new Response(rss);
   if(url===engineering.feed_url) return new Response(atom);

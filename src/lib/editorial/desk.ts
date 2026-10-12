@@ -9,16 +9,22 @@ import { createHash, randomUUID } from "node:crypto";
 import { categorize } from "../news";
 import { parseSuggestion, suggestionRequest } from "./suggestions";
 import { IMAGE_BUCKET, validFeaturedWeek, validateImageUpload } from "./images";
+import { publisherByKey } from "./publisher-catalog";
+import { requireSourceAccess } from "./source-access";
 
-export async function loadDesk(query: DeskQuery): Promise<DeskData> {
-  const {db} = await requireEditor();
+export function sanitizeDeskQuery(query: DeskQuery): DeskQuery {
+  if (query.sourceKind && !['company','journalism','research','community'].includes(query.sourceKind)) throw new DeskError('Choose a supported source type.');
   const safe: DeskQuery = {};
-  for (const key of ['view','id','q','publisher','category','status','since','page'] as const) {
+  for (const key of ['view','id','q','publisher','sourceKind','category','status','since','page'] as const) {
     if (typeof query[key] === 'string') safe[key] = query[key].slice(0,200);
   }
-  const data = await rpc<DeskData>(db,'load_brief_desk',{p_query:safe});
+  return safe;
+}
+export async function loadDesk(query: DeskQuery): Promise<DeskData> {
+  const {db} = await requireEditor();
+  const data = await rpc<DeskData>(db,'load_brief_desk',{p_query:sanitizeDeskQuery(query)});
   requireDailyLimit(data?.dailyAttemptLimit);
-  return data;
+  return {...data,publishers:data.publishers.map(row=>({...row,catalog:publisherByKey(row.catalog_key ?? '') ?? null}))};
 }
 
 type Session = { db: SupabaseClient; user: { id: string } };
@@ -65,19 +71,20 @@ async function performDeskMutation(input: DeskMutation, {db,user}: Session): Pro
     if ('id' in input) requireId(input.id);
     if ('version' in input && (!Number.isSafeInteger(input.version) || input.version < 1)) throw new DeskError('Reload this draft before continuing.');
     if (input.intent === 'discover') {
-      const result = await discoverStories();
+      if (input.publisherId !== undefined && !validId(input.publisherId)) throw new DeskError('Select a valid configured publisher.');
+      const result = await discoverStories(input.publisherId);
       return {ok:true,message:result.message};
     }
     if (input.intent === 'import-url') {
       if (typeof input.url !== 'string' || input.url.length > 2048) throw new DeskError('Enter a valid approved publisher article URL.');
-      let metadata;
-      try { metadata = await retrieveImportMetadata(input.url); }
-      catch (error) { throw new DeskError(error instanceof Error ? error.message : 'Source metadata could not be read.'); }
       const service = serviceDatabase();
-      const publisher = await service.from('brief_publishers').select('id').eq('name',metadata.source_name).single();
-      if (publisher.error || !publisher.data) throw new DeskError('The approved publisher is not configured.','failed');
+      let metadata, publisher;
+      try {
+        publisher = await requireSourceAccess(service,input.url);
+        metadata = await retrieveImportMetadata(publisher.canonicalUrl);
+      } catch (error) { throw new DeskError(error instanceof Error ? error.message : 'Source metadata could not be read.'); }
       const slug = `${metadata.title.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,110)}-${createHash('sha256').update(metadata.url).digest('hex').slice(0,8)}`;
-      const inserted = await service.from('brief_sources').upsert({...metadata,slug,category:categorize(metadata.title),publisher_id:publisher.data.id},{onConflict:'url',ignoreDuplicates:true}).select('id');
+      const inserted = await service.from('brief_sources').upsert({...metadata,slug,category:categorize(metadata.title),publisher_id:publisher.id},{onConflict:'url',ignoreDuplicates:true}).select('id');
       if (inserted.error) throw new DeskError('The article could not be imported. Try again.','failed');
       return {ok:true,message:inserted.data?.length?'Article imported to the inbox. No drafts generated.':'This article is already in your desk; its existing selection is unchanged.'};
     }
@@ -241,9 +248,11 @@ async function performDeskMutation(input: DeskMutation, {db,user}: Session): Pro
       const {active} = await rpc<DeskData>(db,'load_brief_desk',{p_query:{id:input.id}});
       if (!active || active.version !== input.version || active.state !== 'needs_review') throw new DeskError('Draft changed or is no longer editable. Reload before trying again.','conflict');
       let imageUrl;
-      try { imageUrl = await retrieveSourceImage(active.brief_sources.url); }
-      catch { throw new DeskError('The article image could not be retrieved. Try again or upload an image.'); }
       const service = serviceDatabase();
+      try {
+        await requireSourceAccess(service,active.brief_sources.url);
+        imageUrl = await retrieveSourceImage(active.brief_sources.url);
+      } catch (error) { throw new DeskError(error instanceof Error && /access review|approval/.test(error.message) ? error.message : 'The article image could not be retrieved. Try again or upload an image.'); }
       const {error} = await service.from('brief_sources').update({source_image_url:imageUrl}).eq('id',active.story_id);
       if (error) throw new DeskError('The source image could not be saved.','failed');
       const image = await rpc<DeskResult>(db,'set_brief_revision_image',{p_id:input.id,p_version:input.version,p_source:active.image_source || 'source',p_url:active.image_source === 'upload' ? null : imageUrl || '',p_alt:active.image_alt || ''});

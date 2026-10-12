@@ -1,6 +1,8 @@
 import type { Revision, Tiers } from "../brief";
 import type { NewsCategory } from "../types";
 import type { EventSource } from "./event-candidates";
+import type { PublisherDefinition, SourceKind } from "./publisher-catalog";
+import type { DiscoveryHealth } from "./discovery";
 
 export type EventSnapshot = { eventId: string; version: number };
 export type EventContext = EventSnapshot & { leadSourceId: string; members: EventSource[] };
@@ -11,10 +13,14 @@ export type DeskSource = {
   source_published_at: string; category: NewsCategory; publisher_id: string | null;
   triage: "inbox" | "selected" | "saved" | "dismissed";
   job_state: string | null; revision_id: string | null; excerpt?: string | null;
-  source_image_url?: string | null; featured_week?: string | null;
+  source_image_url?: string | null; featured_week?: string | null; source_kind?: SourceKind | null;
 };
 export type DeskPublisher = {
-  id: string; name: string; feed_url: string; enabled: boolean;
+  id: string; name: string; feed_url: string | null; enabled: boolean;
+  catalog_key?: string | null; catalog?: PublisherDefinition | null; source_kind?: SourceKind | null;
+  discovery_method?: "feed" | "newsroom"; discovery_url?: string;
+  access_status?: "approved" | "review_required" | "blocked"; access_note?: string | null;
+  last_result?: DiscoveryHealth | null; last_warning?: string | null; retry_after?: string | null;
   last_attempt_at: string | null; last_success_at: string | null; last_error: string | null;
 };
 export type DeskJob = {
@@ -29,9 +35,9 @@ export type DeskData = {
   counts: { inbox: number; selected: number; saved: number; dismissed: number; drafts: number; published: number; failed: number; queued: number; rejected: number };
   total: number; page: number; pageSize: number; selectedIds: string[]; attemptsToday: number; dailyAttemptLimit: number; autoDraft: boolean;
 };
-export type DeskQuery = { view?: string; id?: string; q?: string; publisher?: string; category?: string; status?: string; since?: string; page?: string };
+export type DeskQuery = { view?: string; id?: string; q?: string; publisher?: string; sourceKind?: string; category?: string; status?: string; since?: string; page?: string };
 export type DeskMutation =
-  | { intent: "discover" }
+  | { intent: "discover"; publisherId?: string }
   | { intent: "triage"; ids: string[]; state: "inbox" | "selected" | "saved" | "dismissed" }
   | { intent: "generate"; ids: string[]; confirmCharge: boolean }
   | { intent: "run-queued"; confirmCharge: boolean }

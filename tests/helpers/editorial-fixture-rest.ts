@@ -34,7 +34,27 @@ export async function fixtureRest(
       return {body:fn.returns_set?rows.rows.map(r=>r.value):rows.rows[0]?.value??null};
     }
     const table=segments[0]; identifier(table);
-    if(!['GET','HEAD'].includes(method))throw new Error('Fixture only supports reads and RPC writes');
+    if(method==='POST' && table==='brief_sources') {
+      if(role!=='service_role') throw new Error('Fixture discovery writes require service role');
+      if(!body || Array.isArray(body) || !Object.keys(body).length) throw new Error('Expected one metadata row');
+      const keys=Object.keys(body);keys.forEach(identifier);
+      if(url.searchParams.get('on_conflict')!=='url' || !headers.prefer?.includes('resolution=ignore-duplicates'))
+        throw new Error('Fixture source insert requires non-destructive URL deduplication');
+      const columns=(url.searchParams.get('select')||'id').split(',').map(identifier).join(',');
+      const rows=await tx.query(`insert into brief_sources(${keys.map(identifier).join(',')}) values(${keys.map((_,i)=>'$'+(i+1)).join(',')}) on conflict(url) do nothing returning ${columns}`,keys.map(key=>body[key]));
+      return {body:rows.rows};
+    }
+    if(method==='PATCH' && table==='brief_publishers') {
+      if(role!=='service_role') throw new Error('Fixture health writes require service role');
+      const id=url.searchParams.get('id');
+      if(!id || !/^eq\.[0-9a-f-]{36}$/i.test(id)) throw new Error('Expected an exact publisher ID');
+      const allowed=['last_attempt_at','last_success_at','last_error','last_warning','last_result','retry_after','discovery_cursor'];
+      const keys=Object.keys(body||{});
+      if(!keys.length || keys.some(key=>!allowed.includes(key))) throw new Error('Only discovery health fields may be patched');
+      await tx.query(`update brief_publishers set ${keys.map((key,i)=>identifier(key)+'=$'+(i+1)).join(',')} where id=$${keys.length+1}`,[...keys.map(key=>typeof body![key]==='object'&&body![key]!==null?JSON.stringify(body![key]):body![key]),id.slice(3)]);
+      return {body:null};
+    }
+    if(!['GET','HEAD'].includes(method))throw new Error('Fixture only supports reads and approved metadata writes');
     const columns=(await tx.query<{column_name:string}>("select column_name from information_schema.columns where table_schema='public' and table_name=$1",[table])).rows.map(r=>r.column_name);
     const select=url.searchParams.get('select')||'*';
     const hasSource=select.includes('brief_sources(')||select.includes('brief_sources!');

@@ -156,8 +156,11 @@ test('cap reads and saved cap receipts fail closed for missing, invalid or unava
     assert.equal(result.dailyAttemptLimit,undefined,'Never echo a requested but unverified limit');
     assert.match(result.message,/unavailable/i);
   }
-  f.snapshot={attemptsToday:10,dailyAttemptLimit:25};
-  assert.equal((await loadDesk({view:'sources'})).dailyAttemptLimit,25);
+  // The real desk RPC always includes publishers, even for an empty catalog.
+  f.snapshot={attemptsToday:10,dailyAttemptLimit:25,publishers:[]};
+  const loaded=await loadDesk({view:'sources'});
+  assert.equal(loaded.dailyAttemptLimit,25);
+  assert.deepEqual(loaded.publishers,[]);
   f.snapshot={attemptsToday:null,dailyAttemptLimit:25};
   assert.equal((await executeDeskMutation({intent:'daily-cap',limit:25,confirmCharge:true},session)).ok,false);
   f.respond=c=>c.name==='load_brief_desk'?json({code:'XX000',message:'unavailable'},500):undefined;

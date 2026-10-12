@@ -9,6 +9,8 @@ await rm(fixtureCache, { recursive: true, force: true });
 const env = {
   ...process.env,
   BRIEF_V2_ENABLED: "true",
+  EDITORIAL_FIXTURE_NETWORK: "1",
+  NODE_OPTIONS: `${process.env.NODE_OPTIONS || ""} --import=${new URL("./editorial-network-fixture.mjs",import.meta.url).href}`,
   NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:4310",
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "fixture-public-key",
   SUPABASE_SECRET_KEY: "fixture-service-key",

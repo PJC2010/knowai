@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Synthetic Verge AI</title>
+<entry><title type="html">A new model</title><link rel="self" href="https://www.theverge.com/rss/12345.xml"/><link rel="alternate" type="application/json" href="https://www.theverge.com/api/story"/><link rel="alternate" type="text/html" href="https://www.theverge.com/ai-artificial-intelligence/12345/new-model?utm_source=feed"/><published>2026-10-01T14:30:00+02:00</published><updated>2026-10-09T00:00:00Z</updated></entry>
+<entry><title>A new tool</title><link href="https://www.theverge.com/ai-artificial-intelligence/12346/new-tool"/><published>2026-09-30T12:30:00Z</published></entry>
+<entry><title>Updated only</title><link rel="alternate" href="https://www.theverge.com/ai-artificial-intelligence/12347/undated"/><updated>2026-10-10T12:30:00Z</updated></entry>
+</feed>

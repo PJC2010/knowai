@@ -12,7 +12,7 @@ export const maxDuration = 300;
 export default async function EditorPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const raw = await searchParams;
   const query: DeskQuery = {};
-  for (const key of ["view", "id", "q", "publisher", "category", "status", "since", "page"] as const) {
+  for (const key of ["view", "id", "q", "publisher", "sourceKind", "category", "status", "since", "page"] as const) {
     const value = raw[key];
     if (typeof value === "string") query[key] = value;
   }

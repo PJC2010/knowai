@@ -6,16 +6,25 @@ import starters from '../src/data/editorial-starters.json';
 const desk = await import('../src/lib/editorial/desk').catch(()=>({})) as typeof import('../src/lib/editorial/desk');
 const id='11111111-1111-4111-8111-111111111111';
 const session={db:createClient('http://127.0.0.1:59999','fixture-session',{auth:{persistSession:false}}),user:{id}};
-const json=(data:unknown,status=200)=>new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json'}});
+import { publisherByName } from '../src/lib/editorial/publisher-catalog';
+const json=(data:unknown,status=200)=>new Response(JSON.stringify(Array.isArray(data)?data.map(row=>{
+ if(!row || typeof row !== 'object' || !('feed_url' in row))return row;
+ const definition=publisherByName(row.name);if(!definition)return row;
+ return {...row,catalog_key:definition.key,source_kind:definition.kind,discovery_method:definition.discovery.method,discovery_url:row.feed_url,access_status:'approved'};
+}):data),{status,headers:{'Content-Type':'application/json'}});
+// Discovery coordination is exercised against actual SQL in source-expansion tests.
+const discoveryInfrastructure=(u:string)=>u.includes('/rpc/acquire_brief_discovery')?json(true)
+ :u.includes('/rpc/release_brief_discovery')?json(null)
+ :u.includes('/brief_sources?')&&new URL(u).searchParams.get('select')==='url'?json([]):null;
 
 test('desk discovery and approved URL import make no model calls or generation jobs',async(t)=>{
  process.env.NEXT_PUBLIC_SUPABASE_URL='http://127.0.0.1:59999';process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY='fixture-public';process.env.SUPABASE_SECRET_KEY='fixture-service';
  delete process.env.EDITORIAL_OPENROUTER_API_KEY;
  const calls:string[]=[];let saved:Record<string,unknown>|undefined;
  t.mock.method(globalThis,'fetch',async(input:RequestInfo|URL,init?:RequestInit)=>{
-  const url=String(input);calls.push(url);
+  const url=String(input);const infrastructure=discoveryInfrastructure(url);if(infrastructure)return infrastructure;calls.push(url);
   if(url.startsWith('https://openai.com')) return new Response('<html><head><title>Model release</title><meta property="article:published_time" content="2026-10-01"></head></html>');
-  if(url.includes('brief_publishers')) return json(url.includes('name=')?{id}:[]);
+  if(url.includes('brief_publishers')) return json(url.includes('catalog_key=')?{id,access_status:'approved',enabled:false}:[]);
   if(url.includes('brief_sources')) {saved=JSON.parse(String(init?.body));return json([{id}]);}
   throw new Error('Unexpected network '+url);
  });
@@ -23,6 +32,46 @@ test('desk discovery and approved URL import make no model calls or generation j
  assert.equal((await desk.executeDeskMutation({intent:'import-url',url:'https://openai.com/news/model'},session)).ok,true);
  assert.equal(saved?.publisher_id,id);assert.equal(saved?.source_published_at,'2026-10-01T00:00:00.000Z');
  assert.equal(calls.some(c=>c.includes('openrouter')||c.includes('brief_jobs')),false);
+});
+
+test('desk query preserves supported source kinds and rejects unknown filters',()=>{
+ assert.equal(typeof desk.sanitizeDeskQuery,'function');
+ assert.deepEqual(desk.sanitizeDeskQuery({view:'inbox',sourceKind:'research',publisher:'example',page:'2'}),{view:'inbox',sourceKind:'research',publisher:'example',page:'2'});
+ assert.throws(()=>desk.sanitizeDeskQuery({sourceKind:'unknown'}),/source type/i);
+});
+
+test('explicit import cannot bypass access review even for a disabled configured source',async(t)=>{
+ let external=0;
+ t.mock.method(globalThis,'fetch',async(input:RequestInfo|URL)=>{
+  const url=String(input);
+  if(url.startsWith('https:')){external++;throw new Error('Unapproved source must not be fetched');}
+  if(url.includes('brief_publishers'))return json({id,catalog_key:'anthropic',access_status:'review_required',enabled:false});
+  throw new Error('Unexpected request '+url);
+ });
+ const result=await desk.executeDeskMutation({intent:'import-url',url:'https://www.anthropic.com/news/fixture-model'},session);
+ assert.equal(result.ok,false);assert.equal(external,0);assert.match(result.message,/review|approval/i);
+});
+
+test('image refresh cannot bypass source access review',async(t)=>{
+ let external=0;
+ t.mock.method(globalThis,'fetch',async(input:RequestInfo|URL)=>{
+  const url=String(input);
+  if(url.startsWith('https:')){external++;throw new Error('Unapproved source must not be fetched');}
+  if(url.includes('load_brief_desk'))return json({active:{id,story_id:id,version:1,state:'needs_review',brief_sources:{url:'https://www.anthropic.com/news/fixture-model'}}});
+  if(url.includes('brief_publishers'))return json({id,access_status:'review_required'});
+  throw new Error('Unexpected request '+url);
+ });
+ const result=await desk.executeDeskMutation({intent:'refresh-image',id,version:1},session);
+ assert.equal(result.ok,false);assert.equal(external,0);assert.match(result.message,/review|approval/i);
+});
+
+test('individual refresh rejects an invalid publisher ID before discovery touches the network',async(t)=>{
+ let calls=0;
+ t.mock.method(globalThis,'fetch',async()=>{calls++;throw new Error('No request allowed');});
+ const result=await desk.executeDeskMutation({intent:'discover',publisherId:'https://untrusted.test/feed'} as unknown as import('../src/lib/editorial/desk-types').DeskMutation,session);
+ assert.equal(result.ok,false);
+ assert.equal(result.code,'invalid');
+ assert.equal(calls,0);
 });
 
 test('paid generation requires confirmation and scopes the worker to exactly enqueued IDs',async(t)=>{
