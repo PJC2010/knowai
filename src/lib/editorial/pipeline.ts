@@ -1,16 +1,13 @@
 import "server-only";
 import { createHash, randomUUID } from "node:crypto";
-import { XMLParser } from "fast-xml-parser";
 import { serviceDatabase } from "./supabase";
-import { boundedFetch, retrieveSourceArticle, extractFeedImage } from "./source";
+import { boundedFetch, retrieveSourceArticle } from "./source";
 import { generationRequest, parseGeneratedTiers } from "./generation";
-import { normalizeSourceUrl } from "../brief";
-import { categorize, plainText } from "../news";
+import { discoverStories } from "./discovery";
+import { requireSourceAccess } from "./source-access";
 
 const hash = (text: string) => createHash("sha256").update(text).digest("hex");
-const primaryFeedNames = new Set(["OpenAI", "Google", "Hugging Face", "Google DeepMind", "Google Research", "Meta Engineering"]);
 const autoDraftFeedNames = new Set(["OpenAI", "Google", "Hugging Face", "TechCrunch"]);
-const aiTopic = /\b(?:AI|LLMs?|GPT|Gemini|Claude|language models?|foundation models?|machine (?:learning|intelligence)|generative|neural|transformer|diffusion|agent(?:s|ic)?|inference|model training|natural language processing|ML applications)\b/i;
 const check = (error: { message: string } | null) => {
   if (error)
     throw new Error(
@@ -18,103 +15,7 @@ const check = (error: { message: string } | null) => {
     );
 };
 
-export async function discoverStories() {
-  const db = serviceDatabase();
-  let discovered = 0;
-  const unavailable: string[] = [];
-  const scanWarnings: string[] = [];
-  const discoveredIds: string[] = [];
-  const autoDraftIds: string[] = [];
-  const publishers = await db.from("brief_publishers").select("id,name,feed_url").eq("enabled", true);
-  check(publishers.error);
-  for (const publisher of publishers.data || []) {
-    const { id: publisherId, name, feed_url: url } = publisher;
-    check((await db.from("brief_publishers").update({last_attempt_at: new Date().toISOString()}).eq("id",publisherId)).error);
-    try {
-      const raw = await boundedFetch(
-        normalizeSourceUrl(url),
-        { signal: AbortSignal.timeout(15000) },
-        1_500_000,
-        3,
-      );
-      const xml = new XMLParser({ processEntities: false, ignoreAttributes: false }).parse(raw);
-      const channel = xml.rss?.channel;
-      const feed = xml.feed;
-      if (!channel && !feed) throw new Error("Invalid feed");
-      const entries = channel ? channel.item : feed.entry;
-      const items = Array.isArray(entries) ? entries : entries ? [entries] : [];
-      const scanLimit = primaryFeedNames.has(name) ? 50 : 8;
-      const scanWarning = items.length > scanLimit ? `${name}: only the first ${scanLimit} feed entries were scanned. Review feed cadence to avoid missing stories.` : null;
-      for (const [index, item] of items.slice(0, scanLimit).entries()) {
-        const links = Array.isArray(item.link) ? item.link : [item.link];
-        const alternate = feed ? links.find((link: Record<string, string>) => link?.["@_rel"] === "alternate") ||
-          links.find((link: Record<string, string>) => link?.["@_href"] && !link["@_rel"]) : null;
-        let canonical: string;
-        try {
-          canonical = normalizeSourceUrl(String(channel ? item.link : alternate?.["@_href"]));
-        } catch {
-          continue;
-        }
-        const title = plainText(typeof item.title === "object" ? item.title?.["#text"] : item.title).slice(0, 500);
-        const categories = Array.isArray(item.category) ? item.category : [item.category];
-        const topics = categories.flatMap((category: unknown) => {
-          if (!category || typeof category !== "object") return [category];
-          const fields = category as Record<string, unknown>;
-          return [fields["#text"], fields["@_term"], fields["@_label"]];
-        }).map(plainText).join(" ");
-        const date = new Date(channel ? item.pubDate : item.published);
-        if (
-          !title ||
-          !Number.isFinite(date.getTime()) ||
-          date.getTime() > Date.now() + 300000 ||
-          (["Google Research", "Meta Engineering"].includes(name) && !aiTopic.test(`${title} ${topics}`)) ||
-          (name === "TechCrunch" &&
-            /expo.*pass|disrupt.*ticket|last.*chance|save.*\$|deal.*disrupt/i.test(
-              title,
-            ))
-        )
-          continue;
-        const slug = `${title
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, "-")
-          .replace(/^-|-$/g, "")
-          .slice(0, 110)}-${hash(canonical).slice(0, 8)}`;
-        const sourceName =
-          name === "Hugging Face" && item["dc:creator"]
-            ? `${plainText(item["dc:creator"])} · Hugging Face`
-            : name;
-        const inserted = await db
-          .from("brief_sources")
-          .upsert(
-            {
-              url: canonical,
-              title,
-              slug,
-              source_name: sourceName,
-              source_published_at: date.toISOString(),
-              category: categorize(title),
-              publisher_id: publisherId,
-              source_image_url: extractFeedImage(item, canonical),
-            },
-            { onConflict: "url", ignoreDuplicates: true },
-          )
-          .select("id");
-        check(inserted.error);
-        if (inserted.data?.length) {
-          discovered++;
-          discoveredIds.push(inserted.data[0].id);
-          if (index < 8 && autoDraftFeedNames.has(name)) autoDraftIds.push(inserted.data[0].id);
-        }
-      }
-      check((await db.from("brief_publishers").update({last_success_at:new Date().toISOString(),last_error:scanWarning}).eq("id",publisherId)).error);
-      if (scanWarning) scanWarnings.push(scanWarning);
-    } catch {
-      unavailable.push(name);
-      check((await db.from("brief_publishers").update({last_error:"Feed retrieval or validation failed. Try refreshing again."}).eq("id",publisherId)).error);
-    }
-  }
-  return { discovered, discoveredIds, autoDraftIds, unavailable, message: `${discovered} new stories discovered. No drafts generated.${unavailable.length ? ` Unavailable feeds: ${unavailable.join(", ")}.` : ""}${scanWarnings.length ? ` Scan limit reached: ${scanWarnings.join(" ")}` : ""}` };
-}
+export { discoverStories } from "./discovery";
 
 export async function runScheduledEditorial() {
   const discovery = await discoverStories();
@@ -190,6 +91,7 @@ export async function runEditorialBatch(jobIds: string[] | null = []) {
           .single();
         check(sourceResult.error);
         const source = sourceResult.data!;
+        await requireSourceAccess(db,source.url);
         const article = await retrieveSourceArticle(source.url);
         const text = article.text;
         const imageUrl = article.imageUrl || source.source_image_url || null;

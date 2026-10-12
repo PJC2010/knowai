@@ -1,4 +1,5 @@
 import type { NewsCategory } from "./types";
+import { PUBLISHERS, normalizePublisherUrl } from "./editorial/publisher-catalog";
 
 export const depths = ["quick", "normal", "deep"] as const;
 export type Depth = (typeof depths)[number];
@@ -128,29 +129,12 @@ export function validateTiers(value: unknown, sourceText?: string): string[] {
   return errors;
 }
 export function normalizeSourceUrl(input: string): string {
-  const url = new URL(input);
-  if (
-    url.protocol !== "https:" ||
-    url.username ||
-    url.password ||
-    (url.port && url.port !== "443") ||
-    ![
-      "openai.com",
-      "blog.google",
-      "huggingface.co",
-      "techcrunch.com",
-      "deepmind.google",
-      "research.google",
-      "engineering.fb.com",
-    ].includes(url.hostname)
-  )
-    throw new Error(
-      "Only the configured publishers’ HTTPS URLs are supported.",
-    );
-  url.hash = "";
-  for (const key of [...url.searchParams.keys()])
-    if (/^(utm_|fbclid$|gclid$)/i.test(key)) url.searchParams.delete(key);
-  return url.toString();
+  for (const publisher of PUBLISHERS) {
+    for (const purpose of ["article", "feed", "listing"] as const) {
+      try { return normalizePublisherUrl(input, publisher, purpose); } catch { /* Try the next configured purpose. */ }
+    }
+  }
+  throw new Error("Only the configured publishers’ HTTPS URLs are supported.");
 }
 export function digestText(
   stories: BriefStory[],

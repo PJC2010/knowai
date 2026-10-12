@@ -32,6 +32,7 @@ test('refresh captures source image for an existing draft and preserves uploaded
  t.mock.method(globalThis,'fetch',async(input:RequestInfo|URL,init?:RequestInit)=>{
   const url=String(input),body=init?.body?JSON.parse(String(init.body)):{};calls.push({url,body});
   if(url.endsWith('load_brief_desk')) return json({active:state});
+  if(url.includes('/brief_publishers?')) return json({id,access_status:'approved'});
   if(url==='https://openai.com/news/article')return new Response('<meta property="og:image" content="https://cdn.example.com/hero.png">');
   if(url.includes('/brief_sources'))return json(null);
   if(url.endsWith('set_brief_revision_image'))return json({version:3,imageUrl:state.image_source==='upload'?'https://project.supabase.co/upload.png':'https://cdn.example.com/hero.png',imageSource:state.image_source,sourceImageUrl:'https://cdn.example.com/hero.png'});

@@ -4,6 +4,8 @@ import { readFile, readdir } from "node:fs/promises";
 import { PGlite } from "@electric-sql/pglite";
 import starters from "../src/data/editorial-starters.json";
 import { fixtureRest } from "./helpers/editorial-fixture-rest";
+import { addedSourceFixtures, syntheticSourceResponses } from "./helpers/editorial-source-fixtures";
+import { PUBLISHERS } from "../src/lib/editorial/publisher-catalog";
 
 const actor = "11111111-1111-4111-8111-111111111111";
 const stamp = "2026-10-04T09:00:00.000Z";
@@ -24,8 +26,11 @@ for(const file of (await readdir(migrationDir)).filter(f=>f.endsWith('.sql')).so
   await db.exec(await readFile(new URL(file,migrationDir),'utf8'));
 await db.query('insert into auth.users(id) values($1)',[actor]);
 await db.query('insert into brief_editors(user_id) values($1)',[actor]);
+const initialPublishers=(await db.query<{id:string;enabled:boolean;access_status:string;access_note:string|null}>('select id,enabled,access_status,access_note from brief_publishers')).rows;
+const sourceRequests:string[]=[];
+let sourceScenario='normal';
 async function seed() {
-  storedImages.clear();
+  storedImages.clear();sourceRequests.length=0;sourceScenario="normal";
   await db.exec('truncate brief_revision_history,brief_publications,brief_revisions,brief_jobs,brief_sources cascade');
   for(const [i,s] of starters.entries()) {
     await db.query('insert into brief_sources(id,slug,url,title,source_name,source_published_at,category,source_image_url) values($1,$2,$3,$4,$5,$6,$7,$8)',[sourceId(i),s.slug,s.url,s.title,s.source_name,s.source_published_at,s.category,sourceImage(i)]);
@@ -39,7 +44,8 @@ async function seed() {
   for(let i=4;i<135;i++)
     await db.query('insert into brief_sources(id,slug,url,title,source_name,source_published_at,category) values($1,$2,$3,$4,$5,$6,$7)',[sourceId(i),`fixture-candidate-${i}`,`https://openai.com/fixture-candidate-${i}`,`Fixture candidate ${String(i).padStart(2,'0')} — a sample AI research story for editor testing`,'OpenAI',stamp,'Research']);
   if ((await db.query("select 1 from information_schema.tables where table_name='brief_publishers'")).rows.length) {
-    await db.exec("update brief_sources s set publisher_id=p.id from brief_publishers p where s.source_name=p.name; update brief_publishers set enabled=true,last_attempt_at=null,last_success_at=null,last_error=null; update brief_settings set auto_draft=false,daily_attempt_limit=10; update brief_worker_lock set token=null,expires_at=null;");
+    await db.exec("update brief_sources s set publisher_id=p.id from brief_publishers p where s.source_name=p.name; update brief_publishers set last_attempt_at=null,last_success_at=null,last_error=null,last_warning=null,last_result=null,retry_after=null,discovery_cursor=null; update brief_settings set auto_draft=false,daily_attempt_limit=10; update brief_worker_lock set token=null,expires_at=null; update brief_discovery_lock set token=null,expires_at=null;");
+    for(const row of initialPublishers)await db.query('update brief_publishers set enabled=$2,access_status=$3,access_note=$4 where id=$1',[row.id,row.enabled,row.access_status,row.access_note]);
   }
 }
 await seed();
@@ -88,6 +94,37 @@ const server=createServer(async(req,res)=>{
       return send(200,prefixes.map((name: string)=>({name})));
     }
     if(url.pathname==='/health')return send(200,{ready:true});
+    if(url.pathname==='/_fixture/source') {
+      const target=url.searchParams.get('url')||'';sourceRequests.push(target);
+      const type=target.includes('anthropic.com')?'text/html':'application/xml';
+      if(sourceScenario==='throttled' && target==='https://www.anthropic.com/news') {
+        res.writeHead(429,{'content-type':'text/plain','retry-after':'300'});return res.end('Synthetic throttled source');
+      }
+      if(sourceScenario==='malformed' && target==='https://www.anthropic.com/news') {
+        res.writeHead(200,{'content-type':type});return res.end('<html><body><main>Unexpected synthetic layout</main></body></html>');
+      }
+      const source=syntheticSourceResponses[target];
+      if(source){res.writeHead(200,{'content-type':type});return res.end(source);}
+      if(PUBLISHERS.some(p=>p.discovery.method==='feed'&&p.discovery.feedUrl===target)) {
+        res.writeHead(200,{'content-type':'application/xml'});return res.end('<rss><channel></channel></rss>');
+      }
+      return send(404,{message:'No synthetic source fixture; real network access is forbidden'});
+    }
+    if(url.pathname==='/_fixture/discovery'&&req.method==='POST') {
+      if(!['normal','throttled','malformed','review'].includes(args.scenario))return send(400,{message:'Unknown discovery fixture scenario'});
+      await seed();sourceScenario=args.scenario;
+      if(args.scenario!=='review') {
+        await db.exec('update brief_publishers set enabled=false');
+        const keys=Array.isArray(args.keys)?args.keys:addedSourceFixtures.map(p=>p.key);
+        if(keys.some((key:unknown)=>!addedSourceFixtures.some(p=>p.key===key)))return send(400,{message:'Unknown synthetic publisher'});
+        for(const key of keys)await db.query("update brief_publishers set enabled=true,access_status='approved',access_note='Synthetic local fixture approval only; no real publisher permission.' where catalog_key=$1",[key]);
+      }
+      return send(200,{ok:true});
+    }
+    if(url.pathname==='/_fixture/discovery-stats') {
+      const counts=(await db.query<{sources:number;jobs:number;revisions:number;publications:number}>('select (select count(*)::int from brief_sources) sources,(select count(*)::int from brief_jobs) jobs,(select count(*)::int from brief_revisions) revisions,(select count(*)::int from brief_publications) publications')).rows[0];
+      return send(200,{...counts,requests:sourceRequests,publishers:(await db.query('select catalog_key,enabled,access_status,last_result,last_warning,last_error,retry_after from brief_publishers order by name')).rows});
+    }
     if(url.pathname==='/_fixture/otp-requests')return send(200,otpRequests);
     if(url.pathname==='/_fixture/reset'&&req.method==='POST'){await seed(); saveFailure='none'; saveDelay=0; return send(200,{ok:true});}
     if(url.pathname==='/_fixture/cross-edition'&&req.method==='POST'){
@@ -136,7 +173,7 @@ const server=createServer(async(req,res)=>{
         await db.query('update brief_revisions set version=version+1 where id=$1',[revisionId]);saveFailure='none';
       }
     }
-    const result=await fixtureRest(db,service?'service_role':editor?'authenticated':'anon',url.pathname.slice('/rest/v1'.length)+url.search,req.method||'GET',{accept:req.headers.accept},args,actor);
+    const result=await fixtureRest(db,service?'service_role':editor?'authenticated':'anon',url.pathname.slice('/rest/v1'.length)+url.search,req.method||'GET',{accept:req.headers.accept,prefer:Array.isArray(req.headers.prefer)?req.headers.prefer.join(","):req.headers.prefer},args,actor);
     return send(200,result.body,result.total===undefined?{}:{'Content-Range':`0-${Math.max(0,(Array.isArray(result.body)?result.body.length:0)-1)}/${result.total}`});
   } catch(error){
     const e=error as {message:string;code?:string};

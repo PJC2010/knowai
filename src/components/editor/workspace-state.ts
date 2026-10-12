@@ -1,5 +1,13 @@
 import type { DeskQuery, DeskResult } from "@/lib/editorial/desk-types";
 import type { Tiers } from "@/lib/brief";
+import type { SourceKind } from "@/lib/editorial/publisher-catalog";
+
+export const sourceKinds: Record<SourceKind, { label: string; description: string }> = {
+  company: { label: "Company announcement", description: "First-party company news, not independent corroboration." },
+  journalism: { label: "Journalism", description: "Reporting and analysis. Check the original article and its sources." },
+  research: { label: "Research blog", description: "Research from a lab or institution, not necessarily peer-reviewed." },
+  community: { label: "Community / tooling", description: "Community work and tools. Check claims at the original source." },
+};
 
 export type DraftSnapshot = {
   content: Tiers; saved: Tiers; version: number; dirty: boolean; saving: boolean;
@@ -96,7 +104,7 @@ export function quoteMatches(source: string, quote: string): { start: number; en
 export function deskHref(query: DeskQuery, patch: Partial<DeskQuery> = {}): string {
   const next = { ...query, ...patch };
   const params = new URLSearchParams();
-  for (const key of ["view", "id", "q", "publisher", "category", "status", "since", "page"] as const) {
+  for (const key of ["view", "id", "q", "publisher", "sourceKind", "category", "status", "since", "page"] as const) {
     if (next[key]) params.set(key, next[key]!);
   }
   return `/editor${params.size ? `?${params}` : ""}`;

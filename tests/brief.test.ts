@@ -205,6 +205,12 @@ test("redirects are checked before fetching and oversized responses are rejected
     globalThis.fetch = original;
   }
 });
+test("Mistral article URLs use the configured exact host without relaxing HTTPS", () => {
+  assert.equal(normalizeSourceUrl("https://mistral.ai/news/new-model?utm_source=feed#top"), "https://mistral.ai/news/new-model");
+  for (const url of ["https://mistral.ai.evil.test/news/new-model", "https://www.mistral.ai/news/new-model", "http://mistral.ai/news/new-model"])
+    assert.throws(() => normalizeSourceUrl(url), /configured publishers/);
+});
+
 test("source extraction rejects RSS-sized fragments and removes executable markup", () => {
   assert.throws(
     () =>
