@@ -11,6 +11,7 @@ const navigation = [
   ["/models", "Model Library"],
   ["/playground", "Playground"],
   ["/learn", "AI 101"],
+  ["/editor", "Editor mode"],
 ] as const;
 
 export function Logo() {
@@ -131,7 +132,7 @@ export function Header() {
           </div>
           <Dialog.Title className="sr-only">Explore knowai</Dialog.Title>
           <Dialog.Description className="sr-only">
-            Browse AI news, find a model, or try a comparison.
+            Browse AI news, find a model, try a comparison, or open editor mode.
           </Dialog.Description>
           <nav className="mobile-menu-nav" aria-label="Mobile navigation">
             {navigation.map(([href, label], index) => (
@@ -187,6 +188,7 @@ export function Footer() {
         <Link href="/follow">Get The Brief</Link>
         <Link href="/learn">AI, explained</Link>
         <Link href="/playground">Try a model</Link>
+        <Link href="/editor">Editor mode</Link>
         <a className="footer-rss" href="/feed.xml" type="application/rss+xml" aria-describedby="rss-help">Subscribe via RSS</a>
         <Link href="/privacy">Privacy</Link>
         <Link href="/terms">Terms</Link>
