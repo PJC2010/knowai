@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, useTransition, type ReactNode } from "reac
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { DeskData, DeskMutation, DeskQuery, DeskResult, DeskSource } from "@/lib/editorial/desk-types";
-import { SourceCard, QueueControls } from "./inbox";
+import { SourceCard, QueueControls, BulkTriageBar } from "./inbox";
 import { DeskDialog, ChargeNotice, LimitReachedNotice } from "./dialog";
 import { ReviewWorkspace, type DeskAction } from "./review-workspace";
 import { deskHref } from "./workspace-state";
@@ -21,7 +21,8 @@ export function EditorDesk({ data, query, mutate, signOut }: { data: DeskData; q
   const [message, setMessage] = useState("");
   const [failed, setFailed] = useState(false);
   const [preview, setPreview] = useState<DeskSource | null>(null);
-  const [undo, setUndo] = useState<{ ids: string[]; state: DeskSource["triage"] } | null>(null);
+  const [undo, setUndo] = useState<{ ids: string[]; state: DeskSource["triage"] }[] | null>(null);
+  const [checkedIds, setCheckedIds] = useState<string[]>([]);
   const [paid, setPaid] = useState<DeskMutation | null>(null);
   const [charge, setCharge] = useState(false);
   const [selectedIds, setSelectedIds] = useState(data.selectedIds);
@@ -31,6 +32,9 @@ export function EditorDesk({ data, query, mutate, signOut }: { data: DeskData; q
   const queueUrl = deskHref(query, { id: undefined });
   const active = data.active;
   useEffect(() => { setSelectedIds(data.selectedIds); }, [data.selectedIds]);
+  // Bulk checks are page-scoped: drop anything no longer visible after a refresh, filter or page change.
+  const pageKey = data.sources.map(source => source.id).join(",");
+  useEffect(() => { const visible = new Set(pageKey.split(",")); setCheckedIds(ids => { const next = ids.filter(id => visible.has(id)); return next.length === ids.length ? ids : next; }); }, [pageKey]);
   useEffect(() => {
     if (!active) {
       const y = queueScroll.get(queueUrl);
@@ -70,8 +74,33 @@ export function EditorDesk({ data, query, mutate, signOut }: { data: DeskData; q
     const result = await perform({ intent: "triage", ids: [source.id], state });
     if (result.ok) {
       setSelectedIds(ids => state === "selected" ? [...new Set([...ids, source.id])] : ids.filter(id => id !== source.id));
-      setUndo({ ids: [source.id], state: previous });
+      setUndo([{ ids: [source.id], state: previous }]);
     }
+  }
+  async function bulkTriage(state: "inbox" | "dismissed") {
+    const targets = data.sources.filter(source => checkedIds.includes(source.id) && (state === "dismissed" ? source.triage !== "dismissed" : source.triage === "dismissed"));
+    if (!targets.length) return;
+    const ids = targets.map(source => source.id);
+    const groups = new Map<DeskSource["triage"], string[]>();
+    for (const source of targets) {
+      const previous = selectedIds.includes(source.id) ? "selected" : source.triage;
+      groups.set(previous, [...(groups.get(previous) || []), source.id]);
+    }
+    const result = await perform({ intent: "triage", ids, state });
+    if (result.ok) {
+      setSelectedIds(current => current.filter(id => !ids.includes(id)));
+      setCheckedIds([]);
+      setUndo([...groups].map(([previous, groupIds]) => ({ ids: groupIds, state: previous })));
+      setMessage(`${state === "dismissed" ? "Dismissed" : "Restored"} ${ids.length} ${ids.length === 1 ? "story" : "stories"}.`);
+    }
+  }
+  async function undoTriage(groups: { ids: string[]; state: DeskSource["triage"] }[]) {
+    for (const group of groups) {
+      const result = await perform({ intent: "triage", ...group });
+      if (!result.ok) return;
+      setSelectedIds(current => group.state === "selected" ? [...new Set([...current, ...group.ids])] : current.filter(id => !group.ids.includes(id)));
+    }
+    setUndo(null);
   }
   const working = pending || navigating;
   if (active) return <div className="editor-desk desk-focused"><ReviewWorkspace key={active.id} revision={active} history={data.history} revisions={data.revisions} attempts={usage.attempts} limit={usage.limit} mutate={mutate} historyLoading={navigating} refreshHistory={() => startNavigation(() => router.refresh())} onBack={() => startNavigation(() => router.push(queueUrl, { scroll: false }))} onOpen={open} /></div>;
@@ -80,7 +109,7 @@ export function EditorDesk({ data, query, mutate, signOut }: { data: DeskData; q
     <nav className="desk-navigation" aria-label="Editorial navigation">{([['inbox', 'Inbox', data.counts.inbox], ['drafts', 'Drafts', data.counts.drafts], ['published', 'Published', data.counts.published], ['sources', 'Sources', null]] as const).map(([key, label, count]) => <Link key={key} href={deskHref(query, { view: key, id: undefined, page: undefined, status: undefined })} aria-current={view === key ? "page" : undefined}>{label}{count !== null && <span>{count}</span>}</Link>)}</nav>
     <div className="desk-status-line"><span>Refresh discovers stories only. No model charges.</span><span>{usage.attempts} / {usage.limit} attempts today · {Math.max(0, usage.limit - usage.attempts)} remaining</span></div>
     <LimitReachedNotice attempts={usage.attempts} limit={usage.limit} />
-    {(message || pending) && <div className={`desk-feedback ${failed ? "desk-save-error" : ""}`} role={failed ? "alert" : "status"}><span>{pending ? "Working… please keep this page open." : message}</span>{undo && !pending && <button className="text-button" onClick={async () => { const result = await perform({ intent: "triage", ...undo }); if (result.ok) setUndo(null); }}>Undo last triage</button>}</div>}
+    {(message || pending) && <div className={`desk-feedback ${failed ? "desk-save-error" : ""}`} role={failed ? "alert" : "status"}><span>{pending ? "Working… please keep this page open." : message}</span>{undo && !pending && <button className="text-button" onClick={() => void undoTriage(undo)}>Undo last triage</button>}</div>}
     {view === "sources" ? <section className="desk-settings" aria-label="Publisher settings">
       <DailyLimitSettings limit={usage.limit} busy={working} save={(limit, confirmCharge) => perform({ intent: "daily-cap", limit, confirmCharge })} />
       <div className="desk-settings-intro"><h2>Discovery is free of model calls.</h2><p>Choose the sources you want to consider. Turning off a source pauses future discovery; it does not delete stories or publish anything. Sources with access restrictions stay unavailable until their policy review is resolved.</p></div>
@@ -90,7 +119,8 @@ export function EditorDesk({ data, query, mutate, signOut }: { data: DeskData; q
     </section> : <>
       <QueueControls query={{ ...query, view }} publishers={data.publishers} total={data.total} page={data.page} pageSize={data.pageSize} onFilter={next => startNavigation(() => router.push(deskHref(next)))} />
       {view === "drafts" && <div className="desk-attention"><Link href={deskHref(query, { status: "needs_review", page: undefined })}>Needs review <span>{data.counts.drafts}</span></Link><Link href={deskHref(query, { status: "failed", page: undefined })}>Failed <span>{data.counts.failed}</span></Link><Link href={deskHref(query, { status: "queued", page: undefined })}>Queued / held <span>{data.counts.queued}</span></Link><Link href={deskHref(query, { status: "rejected", page: undefined })}>Rejected <span>{data.counts.rejected}</span></Link></div>}
-      <div className="desk-story-list">{view === "inbox" ? data.sources.map(source => <SourceCard key={source.id} source={source} selected={selectedIds.includes(source.id)} pending={working} onTriage={(s, state) => void triage(s, state)} onPreview={setPreview} />) : ["failed", "queued"].includes(query.status || "") ? data.jobs.map(job => <article className="desk-story" key={job.id}><div className="desk-meta"><span>{job.source_name}</span><time dateTime={job.created_at}>Attempt {job.created_at.slice(0, 10)}</time><span>{job.state.replaceAll("_", " ")}{!job.selected && " · held, not selected"}</span></div><h2>{job.title}</h2>{job.error && <p className="desk-invalid">{job.error}</p>}{job.cost !== null && <p className="desk-hint">Reported cost: ${job.cost.toFixed(6)}</p>}<div className="desk-card-actions"><a className="text-button" href={job.source_url} target="_blank" rel="noreferrer">Original source ↗</a><button className="button secondary" disabled={working} onClick={() => void perform({ intent: "triage", ids: [job.story_id], state: "selected" })}>{job.selected ? "Keep selected" : "Select this story"}</button><button className="button primary" disabled={working || usage.attempts >= usage.limit} onClick={() => askCharge({ intent: "regenerate", id: job.story_id, confirmCharge: false })}>Retry this story</button></div>{!job.selected && <p className="desk-hint">Legacy work is held. It will not run unless you explicitly select or retry this story.</p>}</article>) : data.revisions.map(revision => <article className="desk-story" key={revision.id}><div className="desk-meta"><span>{revision.brief_sources.source_name}</span><time dateTime={revision.brief_sources.source_published_at}>{revision.brief_sources.source_published_at.slice(0, 10)}</time><span>{revision.brief_sources.category}</span></div><h2><Link className="desk-headline" href={deskHref(query, { id: revision.id })} onClick={event => { if (!event.ctrlKey && !event.metaKey) { event.preventDefault(); open(revision.id); } }}>{revision.content.oneLiner || revision.brief_sources.title}</Link></h2><p className="desk-hint">{revision.state.replaceAll("_", " ")} · version {revision.version}</p><button className="button secondary" onClick={() => open(revision.id)}>{revision.state === "needs_review" ? "Review draft →" : "Open revision →"}</button></article>)}</div>
+      {view === "inbox" && <BulkTriageBar sources={data.sources} checkedIds={checkedIds} pending={working} onToggleAll={checked => setCheckedIds(checked ? data.sources.map(source => source.id) : [])} onTriage={state => void bulkTriage(state)} />}
+      <div className="desk-story-list">{view === "inbox" ? data.sources.map(source => <SourceCard key={source.id} source={source} selected={selectedIds.includes(source.id)} pending={working} checked={checkedIds.includes(source.id)} onCheck={(s, checked) => setCheckedIds(ids => checked ? [...new Set([...ids, s.id])] : ids.filter(id => id !== s.id))} onTriage={(s, state) => void triage(s, state)} onPreview={setPreview} />) : ["failed", "queued"].includes(query.status || "") ? data.jobs.map(job => <article className="desk-story" key={job.id}><div className="desk-meta"><span>{job.source_name}</span><time dateTime={job.created_at}>Attempt {job.created_at.slice(0, 10)}</time><span>{job.state.replaceAll("_", " ")}{!job.selected && " · held, not selected"}</span></div><h2>{job.title}</h2>{job.error && <p className="desk-invalid">{job.error}</p>}{job.cost !== null && <p className="desk-hint">Reported cost: ${job.cost.toFixed(6)}</p>}<div className="desk-card-actions"><a className="text-button" href={job.source_url} target="_blank" rel="noreferrer">Original source ↗</a><button className="button secondary" disabled={working} onClick={() => void perform({ intent: "triage", ids: [job.story_id], state: "selected" })}>{job.selected ? "Keep selected" : "Select this story"}</button><button className="button primary" disabled={working || usage.attempts >= usage.limit} onClick={() => askCharge({ intent: "regenerate", id: job.story_id, confirmCharge: false })}>Retry this story</button></div>{!job.selected && <p className="desk-hint">Legacy work is held. It will not run unless you explicitly select or retry this story.</p>}</article>) : data.revisions.map(revision => <article className="desk-story" key={revision.id}><div className="desk-meta"><span>{revision.brief_sources.source_name}</span><time dateTime={revision.brief_sources.source_published_at}>{revision.brief_sources.source_published_at.slice(0, 10)}</time><span>{revision.brief_sources.category}</span></div><h2><Link className="desk-headline" href={deskHref(query, { id: revision.id })} onClick={event => { if (!event.ctrlKey && !event.metaKey) { event.preventDefault(); open(revision.id); } }}>{revision.content.oneLiner || revision.brief_sources.title}</Link></h2><p className="desk-hint">{revision.state.replaceAll("_", " ")} · version {revision.version}</p><button className="button secondary" onClick={() => open(revision.id)}>{revision.state === "needs_review" ? "Review draft →" : "Open revision →"}</button></article>)}</div>
       {data.total === 0 && <div className="desk-empty"><h2>{view === "inbox" ? "Nothing in this view yet." : "A clear desk."}</h2><p>{query.q || query.publisher || query.sourceKind || query.category || query.since ? "Try clearing a filter to see more stories." : view === "inbox" ? "Refresh your sources to discover stories, or bring an approved article into Sources." : "Select stories in the inbox, then generate the drafts you want to work on."}</p><Link className="button secondary" href={deskHref({ view: "inbox" })}>Go to inbox</Link></div>}
       {view === "drafts" && query.status === "queued" && <div className="desk-setting-section"><p>Only explicitly selected queued work will run. Older, unselected jobs remain held.</p><button className="button primary" disabled={working || usage.attempts >= usage.limit} onClick={() => askCharge({ intent: "run-queued", confirmCharge: false })}>Run selected queued jobs</button></div>}
       {view === "inbox" && selectedIds.length > 0 && <section className="desk-selection-tray" aria-label="Selected stories"><div><strong>{selectedIds.length} {selectedIds.length === 1 ? "story" : "stories"} selected</strong><small>200-story selection limit · up to 3 drafts per batch</small></div><Link className="text-button" href={deskHref(query, { view: "inbox", status: "selected", page: undefined, id: undefined })}>View selected</Link><button className="button primary" disabled={working || usage.attempts >= usage.limit} onClick={() => askCharge({ intent: "generate", ids: selectedIds, confirmCharge: false })}>Generate selected drafts</button></section>}
