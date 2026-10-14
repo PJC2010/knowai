@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import type { DeskPublisher, DeskQuery, DeskSource } from "@/lib/editorial/desk-types";
 import { deskHref, sourceKinds } from "./workspace-state";
 
@@ -41,13 +41,38 @@ export function QueueControls({ query, publishers, total, page, pageSize, onFilt
   </>;
 }
 
-export function SourceCard({ source, selected, pending, onTriage, onPreview }: {
+export function BulkTriageBar({ sources, checkedIds, pending, onToggleAll, onTriage }: {
+  sources: DeskSource[]; checkedIds: string[]; pending: boolean;
+  onToggleAll: (checked: boolean) => void;
+  onTriage: (state: "inbox" | "dismissed") => void;
+}) {
+  const box = useRef<HTMLInputElement>(null);
+  const onPage = sources.filter(source => checkedIds.includes(source.id));
+  const count = onPage.length;
+  const all = sources.length > 0 && count === sources.length;
+  const some = count > 0 && !all;
+  useEffect(() => { if (box.current) box.current.indeterminate = some; }, [some]);
+  if (!sources.length) return null;
+  const dismissible = onPage.filter(source => source.triage !== "dismissed").length;
+  const restorable = onPage.filter(source => source.triage === "dismissed").length;
+  return <div className="desk-bulk-bar" role="group" aria-label="Bulk actions for this page">
+    <label className="desk-bulk-all"><input ref={box} type="checkbox" checked={all} aria-checked={some ? "mixed" : all} disabled={pending} onChange={event => onToggleAll(event.target.checked)} /><span>{all ? "Deselect all on this page" : "Check all on this page"}</span></label>
+    <span className="desk-bulk-count" aria-live="polite">{count ? `${count} of ${sources.length} checked` : "None checked"}</span>
+    <div className="desk-bulk-actions">
+      <button className="button secondary" disabled={pending || !dismissible} onClick={() => onTriage("dismissed")}>{dismissible ? `Dismiss ${dismissible} ${dismissible === 1 ? "story" : "stories"}` : "Dismiss checked"}</button>
+      {restorable > 0 && <button className="text-button" disabled={pending} onClick={() => onTriage("inbox")}>{`Restore ${restorable} to inbox`}</button>}
+    </div>
+  </div>;
+}
+
+export function SourceCard({ source, selected, pending, onTriage, onPreview, checked, onCheck }: {
   source: DeskSource; selected: boolean; pending: boolean;
   onTriage: (source: DeskSource, state: DeskSource["triage"]) => void;
   onPreview: (source: DeskSource) => void;
+  checked?: boolean; onCheck?: (source: DeskSource, checked: boolean) => void;
 }) {
-  return <article className="desk-story" data-selected={selected || undefined}>
-    <div className="desk-meta"><span>{source.source_name}</span><SourceKindBadge kind={source.source_kind} /><time dateTime={source.source_published_at}>{source.source_published_at.slice(0, 10)}</time><span className="category-tag">{source.category}</span></div>
+  return <article className="desk-story" data-selected={selected || undefined} data-checked={checked || undefined}>
+    <div className="desk-meta">{onCheck && <label className="desk-bulk-check"><input type="checkbox" checked={Boolean(checked)} disabled={pending} aria-label={`Check “${source.title}” for bulk actions`} onChange={event => onCheck(source, event.target.checked)} /></label>}<span>{source.source_name}</span><SourceKindBadge kind={source.source_kind} /><time dateTime={source.source_published_at}>{source.source_published_at.slice(0, 10)}</time><span className="category-tag">{source.category}</span></div>
     <h2><button className="desk-headline" onClick={() => onPreview(source)}>{source.title}</button></h2>
     <div className="desk-meta"><span>{source.triage === "selected" ? "Selected for drafting" : source.triage === "saved" ? "Saved for later" : source.triage === "dismissed" ? "Dismissed" : "Ready to consider"}</span>{source.job_state && <span>Draft: {source.job_state.replaceAll("_", " ")}</span>}</div>
     <div className="desk-card-actions">

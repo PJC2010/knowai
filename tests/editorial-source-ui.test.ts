@@ -76,8 +76,8 @@ test("provenance disclosures keep a visible native marker, keyboard focus and a 
 
 async function withDOM(check: (document: Document, render: (element: ReactNode) => Promise<void>, click: (element: Element) => Promise<void>) => Promise<void>) {
   const { window } = parseHTML("<html><body><div id='root'></div></body></html>");
-  const previous = ["window", "document", "IS_REACT_ACT_ENVIRONMENT"].map(name => [name, Object.getOwnPropertyDescriptor(globalThis, name)] as const);
-  for (const [name, value] of Object.entries({ window, document: window.document, IS_REACT_ACT_ENVIRONMENT: true })) Object.defineProperty(globalThis, name, { configurable: true, value });
+  const previous = ["window", "self", "document", "IS_REACT_ACT_ENVIRONMENT"].map(name => [name, Object.getOwnPropertyDescriptor(globalThis, name)] as const);
+  for (const [name, value] of Object.entries({ window, self: window, document: window.document, IS_REACT_ACT_ENVIRONMENT: true })) Object.defineProperty(globalThis, name, { configurable: true, value });
   const root = createRoot(window.document.getElementById("root")!);
   try {
     await check(window.document, async element => { await act(async () => { root.render(element); }); }, async element => { await act(async () => { element.dispatchEvent(new window.Event("click", { bubbles: true })); }); });
@@ -416,4 +416,70 @@ test("source-type filter opens for the active type and preserves it in both pagi
     assert.equal(url.searchParams.get("q"), "model");
   }
   assert.equal(document.querySelector('.desk-filters a')?.getAttribute("href"), "/editor?view=inbox");
+});
+
+const pageSource = (id: string, patch: Partial<DeskSource> = {}): DeskSource => ({ id, slug: id, title: `Story ${id}`, url: `https://openai.com/${id}`, source_name: "OpenAI", source_published_at: "2026-10-01T09:00:00Z", category: "Tools", publisher_id: "id-openai", triage: "inbox", job_state: null, revision_id: null, source_kind: "company", ...patch });
+
+test("inbox bulk actions: check all selects every story on the page and dismisses them in one request", async () => {
+  const { EditorDesk } = await import("../src/components/editor/desk");
+  const sources = [pageSource("a"), pageSource("b", { triage: "saved" }), pageSource("c")];
+  const calls: DeskMutation[] = [];
+  const mutate = async (input: DeskMutation) => { calls.push(input); return { ok: true, message: "Selection updated." }; };
+  await withDOM(async (document, render, click) => {
+    await render(createElement(AppRouterContext.Provider, { value: router }, createElement(EditorDesk, { data: { ...data, sources, total: 3, selectedIds: ["c"] }, query: { view: "inbox" }, mutate, signOut: null })));
+    const bar = document.querySelector(".desk-bulk-bar")!;
+    assert.match(bar.textContent || "", /Check all on this page/);
+    assert.match(bar.textContent || "", /None checked/);
+    assert.equal(document.querySelectorAll(".desk-bulk-check input").length, 3);
+    const dismiss = () => [...bar.querySelectorAll("button")].find(button => /Dismiss/.test(button.textContent || ""))!;
+    assert.equal(dismiss().hasAttribute("disabled"), true, "Nothing checked, nothing to dismiss");
+
+    const all = bar.querySelector(".desk-bulk-all input") as HTMLInputElement;
+    all.checked = true; await click(all);
+    assert.match(bar.textContent || "", /3 of 3 checked/);
+    assert.match(bar.textContent || "", /Deselect all on this page/);
+    assert.equal(document.querySelectorAll(".desk-story[data-checked]").length, 3);
+    assert.equal(dismiss().textContent, "Dismiss 3 stories");
+
+    await click(dismiss());
+    assert.equal(calls.length, 1, "One request for the whole page");
+    assert.deepEqual(calls[0], { intent: "triage", ids: ["a", "b", "c"], state: "dismissed" });
+    assert.match(document.querySelector(".desk-feedback")?.textContent || "", /Dismissed 3 stories/);
+    assert.equal(document.querySelectorAll(".desk-story[data-checked]").length, 0, "Checks clear after success");
+
+    // Undo restores each story to its own previous state, including the selected one.
+    await click([...document.querySelectorAll(".desk-feedback button")].find(button => /Undo/.test(button.textContent || ""))!);
+    const restored = calls.slice(1).map(call => call.intent === "triage" ? [call.state, [...call.ids].sort()] : null);
+    assert.deepEqual(restored.sort(), [["inbox", ["a"]], ["saved", ["b"]], ["selected", ["c"]]].sort());
+  });
+});
+
+test("bulk bar checks individual stories, shows a mixed state and can restore dismissed ones", async () => {
+  const { EditorDesk } = await import("../src/components/editor/desk");
+  const sources = [pageSource("a"), pageSource("b", { triage: "dismissed" }), pageSource("c")];
+  const calls: DeskMutation[] = [];
+  const mutate = async (input: DeskMutation) => { calls.push(input); return { ok: true, message: "Selection updated." }; };
+  await withDOM(async (document, render, click) => {
+    await render(createElement(AppRouterContext.Provider, { value: router }, createElement(EditorDesk, { data: { ...data, sources, total: 3 }, query: { view: "inbox", status: "all" }, mutate, signOut: null })));
+    const boxes = [...document.querySelectorAll(".desk-bulk-check input")] as HTMLInputElement[];
+    boxes[0].checked = true; await click(boxes[0]);
+    boxes[1].checked = true; await click(boxes[1]);
+    const bar = document.querySelector(".desk-bulk-bar")!;
+    const all = bar.querySelector(".desk-bulk-all input") as HTMLInputElement;
+    assert.match(bar.textContent || "", /2 of 3 checked/);
+    assert.equal(all.getAttribute("aria-checked"), "mixed");
+    assert.equal(all.indeterminate, true);
+    const buttons = [...bar.querySelectorAll("button")];
+    assert.equal(buttons.find(b => /Dismiss/.test(b.textContent || ""))?.textContent, "Dismiss 1 story", "Already-dismissed stories are not re-dismissed");
+    await click(buttons.find(b => /Restore/.test(b.textContent || ""))!);
+    assert.deepEqual(calls[0], { intent: "triage", ids: ["b"], state: "inbox" });
+  });
+});
+
+test("bulk bar is absent when the page has no stories and outside the inbox", async () => {
+  const { EditorDesk } = await import("../src/components/editor/desk");
+  for (const view of ["inbox", "drafts"]) {
+    const document = parse(renderToStaticMarkup(createElement(AppRouterContext.Provider, { value: router }, createElement(EditorDesk, { data: { ...data, sources: view === "drafts" ? [pageSource("a")] : [] }, query: { view }, mutate: run, signOut: null }))));
+    assert.equal(document.querySelector(".desk-bulk-bar"), null, view);
+  }
 });
