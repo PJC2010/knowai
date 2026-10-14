@@ -8,11 +8,19 @@ export function estimateCost(model: Model, prompt: string, maxTokens: number) {
     1e6
   );
 }
+export class OpenRouterError extends Error {
+  status: number;
+  constructor(status: number) {
+    super(apiError(status));
+    this.status = status;
+    this.name = "OpenRouterError";
+  }
+}
 export function apiError(status: number) {
   if (status === 401)
     return "Your key was not accepted. Reconnect your OpenRouter account.";
   if (status === 402)
-    return "Your OpenRouter credits or key spending limit are too low. Add credits or adjust your key limit.";
+    return "This model needs OpenRouter credits, or your key's spending limit is too low. Add credits, or switch to a free model.";
   if (status === 429)
     return "This model is busy or rate-limited. Please try again shortly.";
   if (status === 404)
@@ -26,7 +34,8 @@ export function parseCompletion(
   model: Model,
   duration: number,
 ): ComparisonResult {
-  if (body.error) throw new Error(apiError(Number(body.error.code) || 502));
+  if (body.error)
+    throw new OpenRouterError(Number(body.error.code) || 502);
   const message = body.choices?.[0]?.message;
   const text =
     typeof message?.content === "string"
@@ -98,7 +107,7 @@ export async function complete(
     }),
     signal,
   });
-  if (!response.ok) throw new Error(apiError(response.status));
+  if (!response.ok) throw new OpenRouterError(response.status);
   return parseCompletion(
     await response.json(),
     model,

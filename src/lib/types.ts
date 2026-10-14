@@ -37,6 +37,8 @@ export type ComparisonResult = {
   modelName: string;
   text?: string;
   error?: string;
+  /** HTTP-style status from OpenRouter when a request was refused. */
+  errorStatus?: number;
   truncated?: boolean;
   inputTokens?: number;
   outputTokens?: number;

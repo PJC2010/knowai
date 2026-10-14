@@ -1584,6 +1584,51 @@ a:hover > .story-top > svg {
   font-size: 0.875rem;
   line-height: 1.25rem;
 }
+.connection-banner.returning {
+  border: 1px solid var(--accent);
+}
+.free-start-badge {
+  display: inline-flex;
+  margin-top: 1.5rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 600;
+}
+.free-start-badge + .setup-steps {
+  margin-top: 1.5rem;
+}
+.free-tag {
+  display: inline-block;
+  margin-right: 0.25rem;
+  padding: 0 0.5rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+.connection-free-hint {
+  color: var(--muted);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+.credit-actions {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+.credit-actions .button {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+.credit-actions small {
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
 .prompt-panel {
   padding: 2rem;
   border-radius: var(--radius-lg);

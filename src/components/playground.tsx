@@ -16,9 +16,11 @@ import {
   MessageSquare,
   Wallet,
   ChevronDown,
+  ExternalLink,
 } from "@/components/icons";
 import type { ModelsData, ComparisonResult } from "@/lib/types";
-import { complete, estimateCost } from "@/lib/openrouter";
+import { complete, estimateCost, OpenRouterError } from "@/lib/openrouter";
+import { defaultModelIds, freeAlternative, isFree } from "@/lib/free-models";
 import { formatPrice, dateLabel } from "@/lib/format";
 import { promptFromParams } from "@/lib/playground-link";
 import { ModelMark, providerName } from "./model-mark";
@@ -49,23 +51,19 @@ const prompts = [
 ];
 export function Playground({ data }: { data: ModelsData }) {
   const params = useSearchParams();
-  const { apiKey, connected, openConnect } = useConnection();
+  const { apiKey, connected, returning, openConnect, reconnect } =
+    useConnection();
   const [ids, setIds] = useState<string[]>(() => {
     const chosen = [...new Set((params.get("models") || "").split(","))]
       .filter((id) => data.models.some((m) => m.id === id))
       .slice(0, 3);
-    return chosen.length
-      ? chosen
-      : [
-          ...new Set(
-            ["openai/gpt-4o-mini", "google/gemini-2.5-flash"]
-              .filter((id) => data.models.some((m) => m.id === id))
-              .concat(data.models.slice(0, 2).map((m) => m.id)),
-          ),
-        ].slice(0, 2);
+    return chosen.length ? chosen : defaultModelIds(data.models);
   });
   const linkedPrompt = params.get("prompt");
-  const [prompt, setPrompt] = useState(() => promptFromParams(params));
+  // Fresh visitors start with a ready-to-run example so the first click works.
+  const [prompt, setPrompt] = useState(
+    () => promptFromParams(params) || prompts[0].value,
+  );
   const [fromLink, setFromLink] = useState(() => !!promptFromParams(params));
   const previousLinkedPrompt = useRef(linkedPrompt);
   useEffect(() => {
@@ -86,6 +84,7 @@ export function Playground({ data }: { data: ModelsData }) {
     .map((id) => data.models.find((m) => m.id === id))
     .filter((m) => !!m);
   const sorted = [...data.models].sort((a, b) => a.name.localeCompare(b.name));
+  const allFree = chosen.length > 0 && chosen.every(isFree);
   const estimate = chosen.reduce(
     (sum, m) =>
       sum +
@@ -131,6 +130,8 @@ export function Playground({ data }: { data: ModelsData }) {
             modelId: model.id,
             modelName: model.name,
             status: "error",
+            errorStatus:
+              !aborted && e instanceof OpenRouterError ? e.status : undefined,
             error: aborted
               ? "Request stopped. The provider may still charge for work already completed."
               : e instanceof Error && e.name === "TimeoutError"
@@ -147,6 +148,15 @@ export function Playground({ data }: { data: ModelsData }) {
     );
     setRunning(false);
     controller.current = null;
+  }
+  function switchToFree(modelId: string) {
+    const replacement = freeAlternative(data.models, ids);
+    if (!replacement) return;
+    setIds(ids.map((id) => (id === modelId ? replacement.id : id)));
+    setResults((prev) => prev.filter((r) => r.modelId !== modelId));
+    setNotice(
+      `Switched to ${replacement.name}, a free model. Run the comparison again when you’re ready.`,
+    );
   }
   async function copy(result: ComparisonResult) {
     try {
@@ -177,23 +187,40 @@ export function Playground({ data }: { data: ModelsData }) {
           {connected ? "OpenRouter connected" : "Your curiosity. Your API key."}
         </span>
       </div>
-      {!connected && (
-        <div className="connection-banner">
-          <div className="connection-banner-icon">
-            <KeyRound size={21} />
+      {!connected &&
+        (returning ? (
+          <div className="connection-banner returning">
+            <div className="connection-banner-icon">
+              <KeyRound size={21} />
+            </div>
+            <div>
+              <strong>Welcome back.</strong>
+              <p>
+                For your privacy, refreshing disconnects your key. Reconnect in
+                one click; OpenRouter remembers your sign-in.
+              </p>
+            </div>
+            <button className="button primary" onClick={reconnect}>
+              Reconnect OpenRouter
+            </button>
           </div>
-          <div>
-            <strong>One account. Your choice of models.</strong>
-            <p>
-              Connect OpenRouter to try real models. You pay OpenRouter directly
-              for usage.
-            </p>
+        ) : (
+          <div className="connection-banner">
+            <div className="connection-banner-icon">
+              <KeyRound size={21} />
+            </div>
+            <div>
+              <strong>Try it free. No card needed.</strong>
+              <p>
+                We picked two free models and a starter prompt. Sign in with
+                OpenRouter when you press Compare; it takes about a minute.
+              </p>
+            </div>
+            <button className="button secondary" onClick={openConnect}>
+              Connect OpenRouter
+            </button>
           </div>
-          <button className="button secondary" onClick={openConnect}>
-            Connect OpenRouter
-          </button>
-        </div>
-      )}
+        ))}
       {data.fallback && (
         <p className="notice">
           Using saved model prices from {dateLabel(data.fetchedAt)}. Check
@@ -245,10 +272,16 @@ export function Playground({ data }: { data: ModelsData }) {
                     </select>
                     <ChevronDown size={14} />
                   </div>
-                  <span>
-                    {formatPrice(model.inputPrice)} in ·{" "}
-                    {formatPrice(model.outputPrice)} out / 1M tokens
-                  </span>
+                  {isFree(model) ? (
+                    <span>
+                      <span className="free-tag">Free</span> No credits needed
+                    </span>
+                  ) : (
+                    <span>
+                      {formatPrice(model.inputPrice)} in ·{" "}
+                      {formatPrice(model.outputPrice)} out / 1M tokens
+                    </span>
+                  )}
                 </div>
                 {ids.length > 1 && (
                   <button
@@ -340,7 +373,7 @@ export function Playground({ data }: { data: ModelsData }) {
             <div className="cost-estimate">
               <span>Approx. at output limit</span>
               <strong>
-                {formatPrice(estimate)} <small>total</small>
+                {allFree ? "Free" : formatPrice(estimate)} <small>total</small>
               </strong>
             </div>
             {running ? (
@@ -453,8 +486,38 @@ export function Playground({ data }: { data: ModelsData }) {
                   ) : result.error ? (
                     <div className="response-error">
                       <Info size={22} />
-                      <h4>This model couldn’t finish.</h4>
+                      <h4>
+                        {result.errorStatus === 402
+                          ? "This model needs credits."
+                          : "This model couldn’t finish."}
+                      </h4>
                       <p>{result.error}</p>
+                      {result.errorStatus === 402 && (
+                        <div className="credit-actions">
+                          {freeAlternative(data.models, ids) && (
+                            <button
+                              className="button primary"
+                              disabled={running}
+                              onClick={() => switchToFree(result.modelId)}
+                            >
+                              Switch to a free model
+                            </button>
+                          )}
+                          <a
+                            className="button secondary"
+                            href="https://openrouter.ai/settings/credits"
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            <Wallet size={15} /> Add credits{" "}
+                            <ExternalLink size={13} />
+                          </a>
+                          <small>
+                            $5 of credit covers hundreds of everyday prompts on
+                            low-cost models.
+                          </small>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div className="response-body">
