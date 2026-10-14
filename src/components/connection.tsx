@@ -23,15 +23,23 @@ import { API, apiError } from "@/lib/openrouter";
 type Connection = {
   apiKey: string;
   connected: boolean;
+  /** Connected earlier in this tab; the key itself is never stored. */
+  returning: boolean;
   openConnect: () => void;
+  /** Starts OpenRouter sign-in directly (one click for returning visitors). */
+  reconnect: () => void;
   disconnect: () => void;
 };
 const ConnectionContext = createContext<Connection>({
   apiKey: "",
   connected: false,
+  returning: false,
   openConnect: () => {},
+  reconnect: () => {},
   disconnect: () => {},
 });
+/** Session flag only: records that this tab connected before, never the key. */
+export const RETURNING_KEY = "knowai-connected-before";
 export const useConnection = () => useContext(ConnectionContext);
 const base64url = (bytes: Uint8Array) =>
   btoa(String.fromCharCode(...bytes))
@@ -45,7 +53,27 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [returning, setReturning] = useState(false);
   const callbackHandled = useRef(false);
+
+  useEffect(() => {
+    try {
+      setReturning(sessionStorage.getItem(RETURNING_KEY) === "1");
+    } catch {}
+  }, []);
+  function forgetConnected() {
+    setReturning(false);
+    try {
+      sessionStorage.removeItem(RETURNING_KEY);
+    } catch {}
+  }
+  function markConnected(key: string) {
+    setApiKey(key);
+    setReturning(true);
+    try {
+      sessionStorage.setItem(RETURNING_KEY, "1");
+    } catch {}
+  }
 
   useEffect(() => {
     if (callbackHandled.current) return;
@@ -99,7 +127,7 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
         const body = await response.json();
         if (typeof body.key !== "string" || !body.key)
           throw new Error("No key was returned. Please try again.");
-        setApiKey(body.key);
+        markConnected(body.key);
       } catch (e) {
         setError(
           e instanceof Error
@@ -157,7 +185,7 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
         signal: AbortSignal.timeout(15000),
       });
       if (!response.ok) throw new Error(apiError(response.status));
-      setApiKey(key);
+      markConnected(key);
       setDraft("");
     } catch (e) {
       setError(
@@ -174,13 +202,19 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
       value={{
         apiKey,
         connected: !!apiKey,
+        returning: returning && !apiKey,
         openConnect: () => {
           setError("");
           setOpen(true);
         },
+        reconnect: () => {
+          setOpen(true);
+          connectAccount();
+        },
         disconnect: () => {
           setApiKey("");
           setDraft("");
+          forgetConnected();
         },
       }}
     >
@@ -213,13 +247,20 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
             <Dialog.Description>
               {apiKey
                 ? "Your OpenRouter account is ready to use in the playground."
-                : "One OpenRouter account. Hundreds of models. Pay only for what you use."}
+                : "Sign in with OpenRouter and try free models right away. No card needed to start."}
             </Dialog.Description>
             {apiKey ? (
               <div className="connection-success">
                 <p>
                   <Check size={20} /> OpenRouter connected for this visit
                 </p>
+                <p className="connection-free-hint">
+                  Free models work without credits. Add credits later only if
+                  you want paid models.
+                </p>
+                <Dialog.Close className="button primary full">
+                  Start exploring
+                </Dialog.Close>
                 <a
                   className="button secondary full"
                   href="https://openrouter.ai/settings/credits"
@@ -229,39 +270,49 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
                   <Wallet size={17} /> Add credits on OpenRouter{" "}
                   <ExternalLink size={14} />
                 </a>
-                <Dialog.Close className="button primary full">
-                  Start exploring
-                </Dialog.Close>
-                <button className="text-button" onClick={() => setApiKey("")}>
+                <button
+                  className="text-button"
+                  onClick={() => {
+                    setApiKey("");
+                    forgetConnected();
+                  }}
+                >
                   Disconnect account
                 </button>
               </div>
             ) : (
               <>
+                <span className="free-start-badge">
+                  $0 to start · no card needed
+                </span>
                 <div className="setup-steps">
                   <div>
                     <span>1</span>
                     <p>
-                      <strong>Add a little credit</strong>
+                      <strong>Sign in with OpenRouter</strong>
                       <small>
-                        Keys are free. Buy usage credits on OpenRouter.
+                        Use Google, GitHub, or email. A key is created for you;
+                        nothing to copy.
                       </small>
                     </p>
-                    <a
-                      href="https://openrouter.ai/settings/credits"
-                      target="_blank"
-                      rel="noreferrer"
-                      aria-label="Buy credits on OpenRouter"
-                    >
-                      <ExternalLink size={17} />
-                    </a>
                   </div>
                   <div>
                     <span>2</span>
                     <p>
-                      <strong>Connect your account</strong>
+                      <strong>Try free models</strong>
                       <small>
-                        Choose a spending limit you’re comfortable with.
+                        The playground starts with free models, so your first
+                        comparison costs nothing.
+                      </small>
+                    </p>
+                  </div>
+                  <div>
+                    <span>3</span>
+                    <p>
+                      <strong>Add credits only if you want more</strong>
+                      <small>
+                        Paid models need OpenRouter credits. You can set a
+                        spending limit when you sign in.
                       </small>
                     </p>
                   </div>
@@ -283,7 +334,7 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
                   {busy ? "Connecting…" : "Connect with OpenRouter"}
                 </button>
                 <div className="or-divider">
-                  <span>or use an existing key</span>
+                  <span>already have a key? paste it</span>
                 </div>
                 <form onSubmit={connectKey}>
                   <label className="field-label" htmlFor="api-key">
@@ -327,9 +378,9 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
             <p className="privacy-note">
               <ShieldCheck size={17} />
               <span>
-                Your key stays in this page’s memory and is sent only to
-                OpenRouter. Refreshing disconnects it. Prompts go to OpenRouter
-                and the selected model providers.
+                Your key never reaches knowai’s server. It stays in this page’s
+                memory, goes only to OpenRouter, and disappears when you refresh
+                or disconnect. Prompts go to OpenRouter and the models you pick.
               </span>
             </p>
           </Dialog.Content>

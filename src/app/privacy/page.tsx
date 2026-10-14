@@ -45,7 +45,11 @@ export default function PrivacyPage() {
             knowai keeps your connected API key in page memory. It does not save
             the key in cookies or browser storage, or send it to knowai’s
             server. Refreshing the page or disconnecting clears the connected
-            key from the app. Disconnecting does not revoke the key on
+            key from the app. After you connect, knowai saves only a
+            “connected before” flag (<code>knowai-connected-before</code>) in
+            this tab’s session storage so it can offer one-click reconnection;
+            it never contains your key and is removed when you disconnect or
+            close the tab. Disconnecting does not revoke the key on
             OpenRouter; you can manage or revoke it in your{" "}
             <a
               href="https://openrouter.ai/settings/keys"
